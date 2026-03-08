@@ -1,4 +1,3 @@
-// Archetype reveal screen — the Aha Moment after Phase 1
 import { useEffect } from 'react';
 import {
   View,
@@ -6,21 +5,24 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Share,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { 
   FadeIn, 
   FadeInDown, 
-  ZoomIn, 
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
 } from 'react-native-reanimated';
-import { Colors, S, T, R } from '../../constants/theme';
+import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
-import { ARCHETYPES, getArchetypeByName } from '../../lib/archetypes';
+import { getArchetypeByName } from '../../lib/archetypes';
 import RadarChart from '../../components/RadarChart';
 
-const { width: W } = Dimensions.get('window');
-const CHART_SIZE = W * 0.72;
+const { width: W, height: H } = Dimensions.get('window');
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -28,225 +30,180 @@ export default function ResultScreen() {
 
   const scores = user?.scores || { O: 72, C: 55, E: 80, A: 60, N: 30 };
   const archetypeName = user?.primaryArchetype || 'Explorer Creator';
-  const archetype = getArchetypeByName(archetypeName) ||
-    Object.values(ARCHETYPES)[0];
+  const archetype = getArchetypeByName(archetypeName);
 
-  const handleShare = async () => {
-    await Share.share({
-      message: `My Archetype: ${archetype.nameEn} (${archetype.nameZh})\n\nDiscover yours → archetype.app`,
-    });
-  };
+  // Aurora Blob Animations
+  const blob1Pos = useSharedValue(0);
+  const blob2Pos = useSharedValue(0);
+
+  useEffect(() => {
+    blob1Pos.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 5000 }),
+        withTiming(0, { duration: 5000 })
+      ),
+      -1
+    );
+    blob2Pos.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 7000 }),
+        withTiming(0, { duration: 7000 })
+      ),
+      -1
+    );
+  }, []);
+
+  const blob1Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: blob1Pos.value * 20 },
+      { translateY: blob1Pos.value * -30 },
+      { scale: 1 + blob1Pos.value * 0.1 },
+    ],
+  }));
+
+  const blob2Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: blob2Pos.value * -15 },
+      { translateY: blob2Pos.value * 25 },
+      { scale: 1.1 - blob2Pos.value * 0.1 },
+    ],
+  }));
 
   return (
-    <View style={styles.container}>
-      {/* Subtle vertical decorative line */}
-      <View style={styles.decorLine} />
+    <SafeAreaView style={styles.container}>
+      {/* Aurora Background */}
+      <View style={StyleSheet.absoluteFill}>
+        <Animated.View style={[styles.blob, styles.blob1, blob1Style]} />
+        <Animated.View style={[styles.blob, styles.blob2, blob2Style]} />
+      </View>
 
-      {/* Top label */}
-      <Animated.View 
-        entering={FadeIn.delay(200).duration(600)}
-        style={styles.topBar}
-      >
-        <Text style={styles.resultLabel}>YOUR ARCHETYPE</Text>
-        <Text style={styles.phaseTag}>PHASE 1 COMPLETE</Text>
-      </Animated.View>
+      <header style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.progressTrack}>
+          <View style={styles.progressFill} />
+        </View>
+        <View style={{ width: 40 }} />
+      </header>
 
-      {/* Radar chart */}
-      <Animated.View
-        entering={ZoomIn.delay(400).duration(800)}
-        style={styles.chartWrap}
-      >
-        <RadarChart
-          scores={scores}
-          size={CHART_SIZE}
-          color={archetype.color}
-          radiusRatio={0.72}
-          labelOffset={20}
-          dashedRings={true}
-          showGradient={true}
-          showLabels={true}
-          showDataPoints={true}
-        />
-      </Animated.View>
+      <main style={styles.main}>
+        <View style={styles.auroraCard}>
+          <Animated.View entering={FadeInDown.duration(800)} style={styles.content}>
+            <Text style={styles.archetypeId}>ARCHETYPE {user?.id?.slice(-2) || '01'}</Text>
+            <Text style={styles.nameZh}>{archetype?.nameZh || '探索者'}</Text>
+            <Text style={styles.nameEn}>The {archetype?.nameEn.split(' ')[0] || 'Explorer'}</Text>
 
-      {/* Archetype name */}
-      <Animated.View
-        entering={FadeInDown.delay(1000).duration(500)}
-        style={styles.titleBlock}
-      >
-        <Text style={[styles.archetypeEn, { color: archetype.color }]}>
-          {archetype.shortLabel}
-        </Text>
-        <Text style={styles.archetypeName}>{archetype.nameEn}</Text>
-        <Text style={styles.archetypeZh}>{archetype.nameZh}</Text>
-      </Animated.View>
+            <View style={styles.chartContainer}>
+              <RadarChart
+                scores={scores}
+                size={W * 0.7}
+                color={Colors.accent}
+                radiusRatio={0.6}
+                labelOffset={15}
+                showLabels={false}
+                showGradient={true}
+              />
+              <View style={[styles.dimTag, { top: -10 }]}>
+                <Text style={styles.dimTagText}>LOGIC</Text>
+              </View>
+              <View style={[styles.dimTag, { bottom: 20, right: -10 }]}>
+                <Text style={styles.dimTagText}>SYSTEMS</Text>
+              </View>
+              <View style={[styles.dimTag, { bottom: 20, left: -10 }]}>
+                <Text style={styles.dimTagText}>EMPATHY</Text>
+              </View>
+            </View>
 
-      {/* Description */}
-      <Animated.Text
-        entering={FadeInDown.delay(1200).duration(400)}
-        style={styles.desc}
-      >
-        {archetype.description}
-      </Animated.Text>
+            <View style={styles.descriptionBox}>
+              <Text style={styles.description}>
+                Your cognitive map reveals a structural preference for stability. 
+                You build frameworks where others see chaos, blending rigorous logic with latent creativity.
+              </Text>
+            </View>
+          </Animated.View>
+        </View>
+      </main>
 
-      {/* CTAs */}
-      <Animated.View 
-        entering={FadeInDown.delay(1400).duration(400)}
-        style={styles.btns}
-      >
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => router.push('/(tabs)/feed')}
-          activeOpacity={0.85}
+      <footer style={styles.footer}>
+        <TouchableOpacity 
+          style={styles.actionBtn} 
+          onPress={() => router.push('/(tabs)/profile')}
         >
-          <Text style={styles.primaryBtnText}>JOIN THE COMMUNITY</Text>
+          <Text style={styles.actionBtnText}>EXPLORE ANALYSIS</Text>
+          <Text style={styles.actionBtnIcon}>→</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.outlineBtn}
-          onPress={() => router.push('/onboarding/phase2')}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.outlineBtnText}>
-            Unlock full precision (Phase 2 →)
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleShare} activeOpacity={0.6}>
-          <Text style={styles.shareText}>Share my archetype</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Vertical ID stamp */}
-      <Text style={styles.vertStamp}>IPIP-BIG5-PHASE1</Text>
-    </View>
+      </footer>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    paddingHorizontal: S[12],
-    paddingTop: 72,
-    paddingBottom: S[12],
-    justifyContent: 'space-between',
-  },
-  decorLine: {
-    position: 'absolute',
-    top: 0, bottom: 0,
-    right: S[12] * 2,
-    width: 1,
-    backgroundColor: Colors.line,
-    opacity: 0.4,
-  },
-  topBar: {
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  blob: { position: 'absolute', width: 300, height: 300, borderRadius: 150, opacity: 0.4 },
+  blob1: { top: -50, right: -50, backgroundColor: '#FFE4E6' }, // rose-200
+  blob2: { bottom: 50, left: -50, backgroundColor: '#E0F2FE' }, // blue-100
+  
+  header: {
+    height: 80,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: S[6],
+    zIndex: 10,
   },
-  resultLabel: {
-    fontSize: T.xs,
-    fontWeight: T.bold,
-    color: Colors.accent,
-    letterSpacing: 2.5,
-  },
-  phaseTag: {
-    fontSize: T.xs,
-    color: Colors.t3,
-    letterSpacing: 1.5,
-    fontWeight: T.semibold,
-  },
+  backBtn: { opacity: 0.6 },
+  backIcon: { fontSize: 24 },
+  progressTrack: { width: 60, height: 4, backgroundColor: Colors.line, borderRadius: 2 },
+  progressFill: { width: '100%', height: '100%', backgroundColor: Colors.black, borderRadius: 2 },
 
-  // Chart
-  chartWrap: {
-    alignSelf: 'center',
+  main: { flex: 1, padding: S[4] },
+  auroraCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 40,
+    padding: S[8],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    ...Shadows.sm,
+  },
+  content: { flex: 1, alignItems: 'flex-start' },
+  archetypeId: { fontSize: 10, fontWeight: '600', color: Colors.t3, letterSpacing: 2, marginBottom: S[2] },
+  nameZh: { fontSize: 48, fontWeight: '700', color: Colors.black, letterSpacing: -1, marginBottom: 4 },
+  nameEn: { fontSize: 24, fontStyle: 'italic', color: Colors.t2, marginBottom: S[8] },
+
+  chartContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginVertical: S[4],
   },
-
-  // Title
-  titleBlock: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  archetypeEn: {
-    fontSize: T.xl,
-    fontWeight: T.light,
-    letterSpacing: 4,
-    marginBottom: 2,
-  },
-  archetypeName: {
-    fontSize: T.hero,
-    fontWeight: T.thin,
-    color: Colors.black,
-    letterSpacing: 1,
-    textAlign: 'center',
-    lineHeight: 52,
-  },
-  archetypeZh: {
-    fontSize: T.md,
-    fontWeight: T.light,
-    color: Colors.t2,
-    letterSpacing: 3,
-  },
-
-  // Description
-  desc: {
-    fontSize: T.base,
-    fontWeight: T.light,
-    color: Colors.t2,
-    lineHeight: 22,
-    textAlign: 'center',
-    paddingHorizontal: S[4],
-  },
-
-  // Buttons
-  btns: {
-    gap: S[4],
-  },
-  primaryBtn: {
-    height: 54,
-    backgroundColor: Colors.black,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: R.sm,
-  },
-  primaryBtnText: {
-    color: Colors.white,
-    fontWeight: T.bold,
-    fontSize: T.base,
-    letterSpacing: 3,
-  },
-  outlineBtn: {
-    height: 54,
+  dimTag: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.line,
+  },
+  dimTagText: { fontSize: 9, fontWeight: 'bold', color: Colors.t3, letterSpacing: 1 },
+
+  descriptionBox: { marginTop: 'auto' },
+  description: { fontSize: 15, color: Colors.t2, lineHeight: 24, fontWeight: '300' },
+
+  footer: { padding: S[6], paddingBottom: S[8] },
+  actionBtn: {
+    height: 64,
+    backgroundColor: Colors.black,
+    borderRadius: 32,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: R.sm,
+    gap: S[4],
+    ...Shadows.md,
   },
-  outlineBtnText: {
-    color: Colors.black,
-    fontWeight: T.medium,
-    fontSize: T.base,
-  },
-  shareText: {
-    fontSize: T.sm,
-    color: Colors.t3,
-    textAlign: 'center',
-    paddingVertical: S[4],
-    letterSpacing: 0.5,
-  },
-
-  // Stamp
-  vertStamp: {
-    position: 'absolute',
-    right: -32,
-    top: '45%',
-    fontSize: T.xs,
-    color: Colors.line,
-    letterSpacing: 3,
-    fontWeight: T.semibold,
-    transform: [{ rotate: '90deg' }],
-  },
+  actionBtnText: { color: Colors.white, fontWeight: 'bold', letterSpacing: 1 },
+  actionBtnIcon: { color: Colors.white, fontSize: 20 },
 });
