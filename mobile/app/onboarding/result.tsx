@@ -1,15 +1,19 @@
 // Archetype reveal screen — the Aha Moment after Phase 1
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
   Dimensions,
   Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  ZoomIn, 
+} from 'react-native-reanimated';
 import { Colors, S, T, R } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { ARCHETYPES, getArchetypeByName } from '../../lib/archetypes';
@@ -27,23 +31,6 @@ export default function ResultScreen() {
   const archetype = getArchetypeByName(archetypeName) ||
     Object.values(ARCHETYPES)[0];
 
-  // Animations
-  const bgAnim = useRef(new Animated.Value(0)).current;
-  const chartAnim = useRef(new Animated.Value(0)).current;
-  const titleAnim = useRef(new Animated.Value(0)).current;
-  const descAnim = useRef(new Animated.Value(0)).current;
-  const btnAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(bgAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(chartAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(titleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(descAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(btnAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
   const handleShare = async () => {
     await Share.share({
       message: `My Archetype: ${archetype.nameEn} (${archetype.nameZh})\n\nDiscover yours → archetype.app`,
@@ -56,27 +43,18 @@ export default function ResultScreen() {
       <View style={styles.decorLine} />
 
       {/* Top label */}
-      <Animated.View style={[styles.topBar, { opacity: bgAnim }]}>
+      <Animated.View 
+        entering={FadeIn.delay(200).duration(600)}
+        style={styles.topBar}
+      >
         <Text style={styles.resultLabel}>YOUR ARCHETYPE</Text>
         <Text style={styles.phaseTag}>PHASE 1 COMPLETE</Text>
       </Animated.View>
 
       {/* Radar chart */}
       <Animated.View
-        style={[
-          styles.chartWrap,
-          {
-            opacity: chartAnim,
-            transform: [
-              {
-                scale: chartAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.85, 1],
-                }),
-              },
-            ],
-          },
-        ]}
+        entering={ZoomIn.delay(400).duration(800)}
+        style={styles.chartWrap}
       >
         <RadarChart
           scores={scores}
@@ -93,20 +71,8 @@ export default function ResultScreen() {
 
       {/* Archetype name */}
       <Animated.View
-        style={[
-          styles.titleBlock,
-          {
-            opacity: titleAnim,
-            transform: [
-              {
-                translateY: titleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
-          },
-        ]}
+        entering={FadeInDown.delay(1000).duration(500)}
+        style={styles.titleBlock}
       >
         <Text style={[styles.archetypeEn, { color: archetype.color }]}>
           {archetype.shortLabel}
@@ -117,26 +83,17 @@ export default function ResultScreen() {
 
       {/* Description */}
       <Animated.Text
-        style={[
-          styles.desc,
-          {
-            opacity: descAnim,
-            transform: [
-              {
-                translateY: descAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
+        entering={FadeInDown.delay(1200).duration(400)}
+        style={styles.desc}
       >
         {archetype.description}
       </Animated.Text>
 
       {/* CTAs */}
-      <Animated.View style={[styles.btns, { opacity: btnAnim }]}>
+      <Animated.View 
+        entering={FadeInDown.delay(1400).duration(400)}
+        style={styles.btns}
+      >
         <TouchableOpacity
           style={styles.primaryBtn}
           onPress={() => router.push('/(tabs)/feed')}

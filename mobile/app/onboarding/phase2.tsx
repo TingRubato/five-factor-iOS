@@ -1,13 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  FadeIn,
+  FadeOut,
+  SlideInRight,
+  SlideOutLeft,
+} from 'react-native-reanimated';
 import { Colors, T, S } from '../../constants/theme';
 import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
@@ -54,51 +62,19 @@ export default function Phase2Screen() {
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  // Reanimated shared values
+  const progress = useSharedValue(0);
 
   const total = PHASE2_QUESTIONS.length;
   const question = PHASE2_QUESTIONS[currentIndex];
-  const progress = (currentIndex + 1) / total;
 
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: progress,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    progress.value = withTiming((currentIndex + 1) / total, { duration: 300 });
   }, [currentIndex]);
 
-  const animateTransition = (callback: () => void) => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: -SCREEN_WIDTH * 0.3,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      callback();
-      slideAnim.setValue(SCREEN_WIDTH * 0.3);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  };
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
 
   const handleAnswer = (value: number) => {
     const newAnswers = { ...answers, [question.id]: value };
@@ -114,7 +90,7 @@ export default function Phase2Screen() {
         setInterstitialData(interstitial);
         setShowInterstitial(true);
       } else {
-        animateTransition(() => setCurrentIndex(currentIndex + 1));
+        setCurrentIndex(currentIndex + 1);
       }
     } else {
       // Phase 2 complete — combine with Phase 1 answers for full scoring
@@ -131,16 +107,19 @@ export default function Phase2Screen() {
 
   const dismissInterstitial = () => {
     setShowInterstitial(false);
-    animateTransition(() => setCurrentIndex(currentIndex + 1));
+    setCurrentIndex(currentIndex + 1);
   };
 
   if (showInterstitial) {
     return (
       <View style={styles.interstitialContainer}>
-        <View style={styles.interstitialContent}>
+        <Animated.View 
+          entering={FadeIn.duration(600)} 
+          style={styles.interstitialContent}
+        >
           <Text style={styles.interstitialTitle}>{interstitialData.title}</Text>
           <Text style={styles.interstitialBody}>{interstitialData.body}</Text>
-        </View>
+        </Animated.View>
         <TouchableOpacity
           style={styles.continueBtn}
           onPress={dismissInterstitial}
@@ -156,17 +135,7 @@ export default function Phase2Screen() {
     <View style={styles.container}>
       {/* Progress bar */}
       <View style={styles.progressTrack}>
-        <Animated.View
-          style={[
-            styles.progressFill,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-            },
-          ]}
-        />
+        <Animated.View style={[styles.progressFill, animatedProgressStyle]} />
       </View>
 
       {/* Header */}
@@ -179,13 +148,10 @@ export default function Phase2Screen() {
 
       {/* Question card */}
       <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
+        key={question.id}
+        entering={SlideInRight.duration(300)}
+        exiting={SlideOutLeft.duration(300)}
+        style={styles.card}
       >
         <Text style={styles.dimensionTag}>{question.dimension}</Text>
         <Text style={styles.questionText}>{question.text}</Text>

@@ -1,17 +1,19 @@
-import { useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  ScrollView,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { 
+  FadeIn, 
+  SlideInLowRes, // Fallback if custom spring is needed, but SlideInDown is simpler
+  SlideInDown,
+} from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
-import { ARCHETYPES, getArchetypeByName } from '../../lib/archetypes';
+import { ARCHETYPES } from '../../lib/archetypes';
 import RadarChart from '../../components/RadarChart';
 
 const { width: W } = Dimensions.get('window');
@@ -47,16 +49,6 @@ export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 120 }),
-    ]).start();
-  }, []);
-
   const data = USER_DATA[id as string] || USER_DATA['u1'];
   const archetype = ARCHETYPES[data.archetypeId];
 
@@ -77,7 +69,7 @@ export default function UserProfileScreen() {
       </View>
 
       <Animated.ScrollView
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        entering={SlideInDown.springify().damping(18).stiffness(120)}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >

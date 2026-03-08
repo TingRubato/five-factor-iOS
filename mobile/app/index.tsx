@@ -1,13 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withSequence,
+  withDelay,
+  FadeIn,
+  FadeInDown,
+} from 'react-native-reanimated';
 import { Colors, S, T, R } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -15,19 +23,15 @@ const { width } = Dimensions.get('window');
 export default function LandingScreen() {
   const router = useRouter();
 
-  const logoAnim = useRef(new Animated.Value(0)).current;
-  const tagAnim = useRef(new Animated.Value(0)).current;
-  const btnAnim = useRef(new Animated.Value(0)).current;
-  const lineAnim = useRef(new Animated.Value(0)).current;
+  const lineProgress = useSharedValue(0);
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.timing(logoAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(lineAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
-      Animated.timing(tagAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(btnAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
+    lineProgress.value = withDelay(800, withTiming(1, { duration: 400 }));
   }, []);
+
+  const animatedLineStyle = useAnimatedStyle(() => ({
+    width: lineProgress.value * 48,
+  }));
 
   return (
     <View style={styles.container}>
@@ -40,20 +44,8 @@ export default function LandingScreen() {
       {/* Hero text */}
       <View style={styles.hero}>
         <Animated.Text
-          style={[
-            styles.brand,
-            {
-              opacity: logoAnim,
-              transform: [
-                {
-                  translateY: logoAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [24, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
+          entering={FadeInDown.duration(800)}
+          style={styles.brand}
         >
           ARCHETYPE
         </Animated.Text>
@@ -61,30 +53,13 @@ export default function LandingScreen() {
         <Animated.View
           style={[
             styles.accentLine,
-            {
-              width: lineAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 48],
-              }),
-            },
+            animatedLineStyle,
           ]}
         />
 
         <Animated.Text
-          style={[
-            styles.tagline,
-            {
-              opacity: tagAnim,
-              transform: [
-                {
-                  translateY: tagAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [16, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
+          entering={FadeInDown.delay(1200).duration(500)}
+          style={styles.tagline}
         >
           Discover your personality circle.{'\n'}
           Find your frequency.
@@ -93,20 +68,8 @@ export default function LandingScreen() {
 
       {/* CTA */}
       <Animated.View
-        style={[
-          styles.bottom,
-          {
-            opacity: btnAnim,
-            transform: [
-              {
-                translateY: btnAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [24, 0],
-                }),
-              },
-            ],
-          },
-        ]}
+        entering={FadeInDown.delay(1700).duration(400)}
+        style={styles.bottom}
       >
         <Text style={styles.duration}>≈ 2 MIN · PHASE 1 OF 2</Text>
 

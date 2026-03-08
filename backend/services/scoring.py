@@ -12,7 +12,7 @@ POPULATION_NORMS = {
 
 
 def calculate_z_score(score, mean, std):
-    if std == 0:
+    if std <= 0:
         return 0.0
     return (score - mean) / std
 

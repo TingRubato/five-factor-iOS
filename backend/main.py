@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+import os
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import Dict, List, Optional
 import uuid
 import math
@@ -10,19 +13,23 @@ import math
 from backend import models, database
 from backend.services import scoring, feed
 from backend import schemas
-
+from backend.auth import create_access_token, get_current_user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    models.Base.metadata.create_all(bind=database.engine)
+    # Models are now managed by Alembic migrations
     yield
 
 
 app = FastAPI(title="Archetype API", version="1.0.0", lifespan=lifespan)
 
+# M-S1: Restrict CORS
+allowed_origins = os.environ.get("CORS_ORIGINS", "http://localhost:8081,exp://127.0.0.1:8081,http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,6 +38,32 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Archetype API", "version": "1.0.0"}
+
+
+@app.get("/health")
+def health_check(db: Session = Depends(database.get_db)):
+    try:
+        # Simple query to check database connectivity
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="Database connection failed")
+
+
+# ── Auth ──────────────────────────────────────────────────────
+
+@app.post("/token")
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Simple prototype authentication: just verify user exists
+    access_token = create_access_token(data={"sub": user.id})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ── Users ─────────────────────────────────────────────────────
@@ -51,11 +84,15 @@ def submit_test(
     user_id: str,
     payload: schemas.SubmitTestRequest,
     db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
     Submit quiz answers. `answers` is a dict of question_id -> likert_value (1-5).
     The backend recalculates Z-scores and archetype mapping from the provided answers.
     """
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to submit for this user")
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -122,6 +159,7 @@ def get_profile(
     user_id: str,
     viewer_id: Optional[str] = None,
     db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     profile = db.query(models.PersonalityProfile).filter(
         models.PersonalityProfile.user_id == user_id
@@ -153,6 +191,8 @@ def get_profile(
 
     # If a viewer is specified, calculate compatibility
     if viewer_id and viewer_id != user_id:
+        if viewer_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized as viewer")
         viewer_profile = db.query(models.PersonalityProfile).filter(
             models.PersonalityProfile.user_id == viewer_id
         ).first()
@@ -176,7 +216,11 @@ def get_profile(
 def create_post(
     payload: schemas.CreatePostRequest,
     db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
+    if current_user.id != payload.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to post for this user")
+
     user = db.query(models.User).filter(models.User.id == payload.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -221,6 +265,7 @@ def get_feed(
     limit: int = 20,
     offset: int = 0,
     db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
     Return a ranked, paginated feed for the given user.
@@ -230,6 +275,9 @@ def get_feed(
       - limit  : posts to return (default 20, max 100)
       - offset : posts to skip in the ranked result (default 0)
     """
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view feed for this user")
+
     limit = max(1, min(limit, _FEED_MAX_LIMIT))
     offset = max(0, offset)
 

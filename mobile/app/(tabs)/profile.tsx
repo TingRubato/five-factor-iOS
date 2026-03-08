@@ -1,15 +1,16 @@
-import { useRef, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { 
+  FadeIn, 
+} from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName, ARCHETYPES } from '../../lib/archetypes';
@@ -29,11 +30,6 @@ const DIM_FULL: Record<string, string> = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useUser();
-  const fadeIn = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeIn, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-  }, []);
 
   const phase = user?.phase || 'none';
   const scores = user?.scores || { O: 50, C: 50, E: 50, A: 50, N: 50 };
@@ -69,7 +65,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Animated.ScrollView
-        style={{ opacity: fadeIn }}
+        entering={FadeIn.duration(500)}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >

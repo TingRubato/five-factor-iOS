@@ -1,14 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
   Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  interpolate,
+  Extrapolation
+} from 'react-native-reanimated';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { PHASE1_QUESTIONS, scoreAnswers } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
@@ -39,31 +45,35 @@ export default function Phase1Screen() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [selected, setSelected] = useState<number | null>(null);
 
-  // Animations
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
-  const cardSlide = useRef(new Animated.Value(20)).current;
+  // Reanimated Shared Values
+  const progress = useSharedValue(0);
+  const cardOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(20);
 
   const total = PHASE1_QUESTIONS.length;
   const q = PHASE1_QUESTIONS[idx];
 
   useEffect(() => {
     // Enter animation each new question
-    cardOpacity.setValue(0);
-    cardSlide.setValue(20);
-    Animated.parallel([
-      Animated.timing(cardOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.timing(cardSlide, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start();
+    cardOpacity.value = 0;
+    cardTranslateY.value = 20;
+    
+    cardOpacity.value = withTiming(1, { duration: 280 });
+    cardTranslateY.value = withTiming(0, { duration: 280 });
   }, [idx]);
 
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: (idx + 1) / total,
-      duration: 350,
-      useNativeDriver: false,
-    }).start();
+    progress.value = withTiming((idx + 1) / total, { duration: 350 });
   }, [idx]);
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  const animatedCardStyle = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
+    transform: [{ translateY: cardTranslateY.value }],
+  }));
 
   const advance = (value: number) => {
     setSelected(value);
@@ -88,17 +98,7 @@ export default function Phase1Screen() {
     <View style={styles.container}>
       {/* Progress line */}
       <View style={styles.progressTrack}>
-        <Animated.View
-          style={[
-            styles.progressFill,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-            },
-          ]}
-        />
+        <Animated.View style={[styles.progressFill, animatedProgressStyle]} />
       </View>
 
       {/* Top bar */}
@@ -111,12 +111,7 @@ export default function Phase1Screen() {
       </View>
 
       {/* Question */}
-      <Animated.View
-        style={[
-          styles.questionArea,
-          { opacity: cardOpacity, transform: [{ translateY: cardSlide }] },
-        ]}
-      >
+      <Animated.View style={[styles.questionArea, animatedCardStyle]}>
         <Text style={styles.questionText}>{q.text}</Text>
         <Text style={styles.questionTextZh}>{q.textZh}</Text>
       </Animated.View>

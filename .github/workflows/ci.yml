@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'poetry'
+        
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+      
+    - name: Install dependencies
+      run: poetry install --no-interaction
+      
+    - name: Lint with ruff
+      run: poetry run ruff check backend
+      
+    - name: Check types with mypy
+      run: poetry run mypy backend --ignore-missing-imports
+      
+    - name: Run tests with coverage
+      run: |
+        PYTHONPATH=. poetry run pytest backend/tests --cov=backend --cov-report=xml
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  mobile-lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: mobile/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ./mobile
+      run: npm ci
+      
+    - name: Lint
+      working-directory: ./mobile
+      run: npm run lint
+      
+    - name: Run typecheck
+      working-directory: ./mobile
+      run: npx tsc
+
+  docker-build-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build backend image (dry run)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: archetype-backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

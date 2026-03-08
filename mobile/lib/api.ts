@@ -9,9 +9,33 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Set JWT token for all future requests
+export function setAuthToken(token: string | null) {
+  if (token) {
+    client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete client.defaults.headers.common['Authorization'];
+  }
+}
+
 // ── Auth / User ───────────────────────────────────────────────
 export async function createUser(username: string) {
   const res = await client.post('/users/', { username });
+  return res.data;
+}
+
+export async function login(username: string) {
+  const params = new URLSearchParams();
+  params.append('username', username);
+  params.append('password', 'dummy'); // Not used right now but required by OAuth2PasswordRequestForm
+  
+  const res = await client.post('/token', params, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+  
+  if (res.data.access_token) {
+    setAuthToken(res.data.access_token);
+  }
   return res.data;
 }
 
