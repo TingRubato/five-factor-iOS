@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet, BackHandler } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -129,14 +129,17 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
   }, [act, goBack]);
 
   // Gestures: tap to advance, swipe to navigate
+  // Callbacks run on UI thread — must use runOnJS for state updates
   const tap = Gesture.Tap().onEnd(() => {
-    advance();
+    'worklet';
+    runOnJS(advance)();
   });
   const swipe = Gesture.Pan()
     .activeOffsetX([-30, 30])
     .onEnd((e) => {
-      if (e.translationX < -50) advance();
-      else if (e.translationX > 50) goBack();
+      'worklet';
+      if (e.translationX < -50) runOnJS(advance)();
+      else if (e.translationX > 50) runOnJS(goBack)();
     });
   const gesture = Gesture.Race(swipe, tap);
 

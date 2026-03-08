@@ -1,16 +1,13 @@
 import { useEffect, useMemo } from 'react';
-import { Dimensions } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
-  useAnimatedProps,
+  useAnimatedStyle,
   withRepeat,
   withSequence,
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -67,22 +64,31 @@ function AnimatedParticle({ p, color, behavior }: { p: Particle; color: string; 
     );
   }, []);
 
-  const animatedProps = useAnimatedProps(() => {
+  const animStyle = useAnimatedStyle(() => {
     const isConverge = behavior === 'converge';
     const targetX = isConverge ? W / 2 : p.x + p.dx;
     const targetY = isConverge ? H / 2 : p.y + p.dy;
     return {
-      cx: p.x + (targetX - p.x) * pos.value,
-      cy: p.y + (targetY - p.y) * pos.value,
+      transform: [
+        { translateX: p.x + (targetX - p.x) * pos.value },
+        { translateY: p.y + (targetY - p.y) * pos.value },
+      ],
       opacity: p.opacity * (behavior === 'burst' ? 1 - pos.value * 0.5 : 1),
     };
   });
 
   return (
-    <AnimatedCircle
-      animatedProps={animatedProps}
-      r={p.r}
-      fill={color}
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: p.r * 2,
+          height: p.r * 2,
+          borderRadius: p.r,
+          backgroundColor: color,
+        },
+        animStyle,
+      ]}
     />
   );
 }
@@ -95,10 +101,17 @@ export default function ParticleField({
   const particles = useMemo(() => generateParticles(count, behavior), [count, behavior]);
 
   return (
-    <Svg width={W} height={H} style={{ position: 'absolute', top: 0, left: 0 }}>
+    <View style={styles.container} pointerEvents="none">
       {particles.map((p) => (
         <AnimatedParticle key={p.id} p={p} color={color} behavior={behavior} />
       ))}
-    </Svg>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+});
