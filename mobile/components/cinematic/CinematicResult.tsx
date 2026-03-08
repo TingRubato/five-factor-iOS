@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet, BackHandler } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -82,6 +82,15 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
     return 'drift' as const;
   }, [act]);
 
+  // Debounce guard against rapid tapping
+  const lastNav = useRef(0);
+  const canNavigate = useCallback(() => {
+    const now = Date.now();
+    if (now - lastNav.current < 500) return false;
+    lastNav.current = now;
+    return true;
+  }, []);
+
   // Auto-advance for Acts 0 and 5
   const autoAdvance = useCallback(() => {
     setAct((a) => Math.min(a + 1, TOTAL_ACTS - 1));
@@ -90,12 +99,14 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
   // Manual advance (tap/swipe) — blocked during auto-play acts
   const advance = useCallback(() => {
     if (act === 0 || act === 5) return;
+    if (!canNavigate()) return;
     setAct((a) => Math.min(a + 1, TOTAL_ACTS - 1));
-  }, [act]);
+  }, [act, canNavigate]);
 
   const goBack = useCallback(() => {
+    if (!canNavigate()) return;
     setAct((a) => Math.max(a - 1, 0));
-  }, []);
+  }, [canNavigate]);
 
   const skipToReveal = useCallback(() => {
     setAct(6);
