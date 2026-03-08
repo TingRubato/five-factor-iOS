@@ -264,6 +264,50 @@ def get_profile(
     return result
 
 
+@app.patch("/profile/{user_id}", response_model=schemas.ProfileResponse)
+def update_profile(
+    user_id: str,
+    payload: schemas.UpdateProfileRequest,
+    db: Session = Depends(database.get_db),
+    _auth = Depends(verify_user_id),
+):
+    profile = db.query(models.PersonalityProfile).filter(
+        models.PersonalityProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if payload.is_public is not None:
+        profile.is_public = payload.is_public
+
+    db.commit()
+    db.refresh(profile)
+
+    return schemas.ProfileResponse(
+        user_id=profile.user_id,
+        quiz_version=profile.quiz_version,
+        scoring_version=profile.scoring_version,
+        archetype_version=profile.archetype_version,
+        scores=schemas.OceanScores(
+            O=profile.o_score,
+            C=profile.c_score,
+            E=profile.e_score,
+            A=profile.a_score,
+            N=profile.n_score,
+        ),
+        z_scores=schemas.OceanScores(
+            O=profile.z_o,
+            C=profile.z_c,
+            E=profile.z_e,
+            A=profile.z_a,
+            N=profile.z_n,
+        ),
+        primary_archetype=profile.primary_archetype,
+        secondary_archetype=profile.secondary_archetype,
+        is_public=profile.is_public,
+    )
+
+
 # ── Posts ──────────────────────────────────────────────────────
 
 @app.post("/posts/", response_model=schemas.PostResponse, status_code=201)

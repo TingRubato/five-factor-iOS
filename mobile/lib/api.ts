@@ -71,6 +71,13 @@ export async function getUserProfile(targetUserId: string, myUserId: string) {
   return res.data;
 }
 
+export async function updateProfileVisibility(userId: string, isPublic: boolean) {
+  const res = await client.patch(`/profile/${userId}`, {
+    is_public: isPublic,
+  });
+  return res.data;
+}
+
 // ── Feed ──────────────────────────────────────────────────────
 
 export interface FeedItem {

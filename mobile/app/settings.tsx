@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R } from '../constants/theme';
 import { useUser } from '../stores/userStore';
+import { updateProfileVisibility } from '../lib/api';
 
 function RowItem({
   label,
@@ -44,9 +45,16 @@ export default function SettingsScreen() {
   const { user, updateProfile, setUser } = useUser();
   const [isPublic, setIsPublic] = useState(user?.isPublic !== false);
 
-  const handleTogglePublic = (val: boolean) => {
+  const handleTogglePublic = async (val: boolean) => {
     setIsPublic(val);
     updateProfile({ isPublic: val });
+    if (user?.id && !user.id.startsWith('local_')) {
+      try {
+        await updateProfileVisibility(user.id, val);
+      } catch (err) {
+        console.error('Failed to update visibility:', err);
+      }
+    }
   };
 
   const handleClearData = () => {

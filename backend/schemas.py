@@ -25,6 +25,10 @@ class SubmitTestRequest(BaseModel):
     version: str = Field("ipip-15-v1", description="Quiz version identifier")
 
 
+class UpdateProfileRequest(BaseModel):
+    is_public: Optional[bool] = None
+
+
 class CreatePostRequest(BaseModel):
     user_id: str
     title: str = Field(..., min_length=1, max_length=200)
