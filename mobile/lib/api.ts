@@ -19,15 +19,15 @@ export function setAuthToken(token: string | null) {
 }
 
 // ── Auth / User ───────────────────────────────────────────────
-export async function createUser(username: string) {
-  const res = await client.post('/users/', { username });
+export async function createUser(username: string, email: string, password: string) {
+  const res = await client.post('/users/', { username, email, password });
   return res.data;
 }
 
-export async function login(username: string) {
+export async function login(username: string, password: string) {
   const params = new URLSearchParams();
   params.append('username', username);
-  params.append('password', 'dummy'); // Not used right now but required by OAuth2PasswordRequestForm
+  params.append('password', password);
   
   const res = await client.post('/token', params, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }

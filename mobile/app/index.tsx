@@ -44,10 +44,14 @@ export default function LandingScreen() {
 
     setLoading(true);
     try {
-      // Generate a simple guest username
-      const guestName = `guest_${Math.random().toString(36).substring(2, 8)}`;
-      const newUser = await createUser(guestName);
-      await login(guestName);
+      // Generate a simple guest username and credentials
+      const guestId = Math.random().toString(36).substring(2, 8);
+      const guestName = `guest_${guestId}`;
+      const guestEmail = `${guestName}@temporary.archetype.app`;
+      const guestPass = `pass_${guestId}_${Math.random().toString(36).substring(2, 8)}`;
+
+      const newUser = await createUser(guestName, guestEmail, guestPass);
+      await login(guestName, guestPass);
       
       setUser({
         id: newUser.id,

@@ -1,17 +1,28 @@
+from datetime import datetime, timezone
 import math
 import random
 from typing import List, Optional
 from .. import models
 
 
-def euclidean_distance(p1, p2):
-    return math.sqrt(
-        (p1.o_score - p2.snapshot_o)**2 +
-        (p1.c_score - p2.snapshot_c)**2 +
-        (p1.e_score - p2.snapshot_e)**2 +
-        (p1.a_score - p2.snapshot_a)**2 +
-        (p1.n_score - p2.snapshot_n)**2
-    )
+from .psychometrics import euclidean_distance_profiles
+
+
+def calculate_recency_score(created_at: datetime) -> float:
+    """Calculate a decay multiplier based on post age."""
+    # Ensure created_at has timezone info for comparison
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    
+    now = datetime.now(timezone.utc)
+    delta = now - created_at
+    hours = delta.total_seconds() / 3600
+    
+    # Gravity factor: how fast things decay. 
+    # 1.8 is common for Hacker News style decay.
+    # Higher = faster decay.
+    gravity = 1.2
+    return 1.0 / ((hours + 2) ** gravity)
 
 
 def rank_feed(
@@ -50,18 +61,44 @@ def rank_feed(
 
     ranked = []
 
-    for post in posts:
-        # TopicScore — upvote count (decay logic can be inserted here later)
-        topic_score = post.upvotes
+    # Prepare user score dict once
+    user_scores = {
+        "O": user_profile.o_score,
+        "C": user_profile.c_score,
+        "E": user_profile.e_score,
+        "A": user_profile.a_score,
+        "N": user_profile.n_score,
+    }
 
-        # Similarity: inverse of normalised euclidean distance
-        dist = euclidean_distance(user_profile, post)
+    for post in posts:
+        # Base quality score from upvotes
+        quality_score = math.log1p(max(0, post.upvotes)) + 1.0
+
+        # Recency decay
+        recency_multiplier = calculate_recency_score(post.created_at)
+        
+        # Topic Affinity (Bonus if topic is assigned, for now)
+        # In future, this would check user's preferred topics.
+        topic_bonus = 1.2 if post.topic_id else 1.0
+
+        # Quality + Recency + Topic
+        base_relevance = quality_score * recency_multiplier * topic_bonus
+
+        # Personality Similarity: inverse of normalised euclidean distance
+        post_scores = {
+            "O": post.snapshot_o or 50,
+            "C": post.snapshot_c or 50,
+            "E": post.snapshot_e or 50,
+            "A": post.snapshot_a or 50,
+            "N": post.snapshot_n or 50,
+        }
+        dist = euclidean_distance_profiles(user_scores, post_scores)
         similarity = 1.0 / (1.0 + (dist / 100.0))
 
         # Serendipity term (deterministic when seed is set)
         serendipity = random.random()
 
-        rank_score = (alpha * topic_score) + \
+        rank_score = (alpha * base_relevance) + \
             (beta * similarity) + (gamma * serendipity)
 
         ranked.append({

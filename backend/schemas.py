@@ -6,13 +6,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
 
 # ── Request Models ────────────────────────────────────────────────────────────
 
 class CreateUserRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=50)
+    username: str = Field(..., min_length=3, max_length=50, pattern="^[a-zA-Z0-9_-]+$")
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72)
 
 
 class SubmitTestRequest(BaseModel):
@@ -37,6 +39,7 @@ class UserResponse(BaseModel):
 
     id: str
     username: str
+    email: str
     created_at: datetime
 
 
@@ -52,7 +55,9 @@ class ProfileResponse(BaseModel):
     """Returned by GET /profile/{user_id} and POST /test/submit/{user_id}."""
 
     user_id: str
-    version: str
+    quiz_version: str
+    scoring_version: str
+    archetype_version: str
     scores: OceanScores
     z_scores: OceanScores
     primary_archetype: str

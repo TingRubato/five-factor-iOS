@@ -20,9 +20,11 @@ psycopg2-binary = "^2.9.7"
 pydantic = "^2.3.0"
 pyjwt = "^2.11.0"
 passlib = "^1.7.4"
-bcrypt = "^5.0.0"
+bcrypt = "4.0.1"
 python-multipart = "^0.0.22"
 alembic = "^1.18.4"
+email-validator = "^2.3.0"
+pydantic-settings = "^2.13.1"
 
 [build-system]
 requires = ["poetry-core"]

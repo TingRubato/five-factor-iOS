@@ -9,7 +9,10 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
+    email = Column(String(100), unique=True, index=True)
+    password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     profile = relationship("PersonalityProfile",
                            back_populates="user", uselist=False)
@@ -21,7 +24,10 @@ class PersonalityProfile(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     user_id = Column(String(36), ForeignKey('users.id'), unique=True, index=True)
-    version = Column(String(50), default='ipip-15-v1')
+
+    quiz_version = Column(String(50), nullable=False, default='ipip-15-v1')
+    scoring_version = Column(String(50), nullable=False, default='v1')
+    archetype_version = Column(String(50), nullable=False, default='v1')
 
     o_score = Column(Float)
     c_score = Column(Float)
