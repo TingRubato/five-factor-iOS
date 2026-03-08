@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -12,12 +13,11 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withTiming, 
-  interpolate,
-  Extrapolation
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { PHASE1_QUESTIONS, scoreAnswers } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
+import { submitTest } from '../../lib/api';
 
 const { width: W } = Dimensions.get('window');
 
@@ -39,11 +39,12 @@ const OPTIONS = [
 
 export default function Phase1Screen() {
   const router = useRouter();
-  const { updateProfile } = useUser();
+  const { user, updateProfile } = useUser();
 
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [selected, setSelected] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Reanimated Shared Values
   const progress = useSharedValue(0);
@@ -75,23 +76,46 @@ export default function Phase1Screen() {
     transform: [{ translateY: cardTranslateY.value }],
   }));
 
-  const advance = (value: number) => {
+  const advance = async (value: number) => {
+    if (loading) return;
     setSelected(value);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const newAnswers = { ...answers, [q.id]: value };
 
-    setTimeout(() => {
-      setSelected(null);
-      if (idx < total - 1) {
+    if (idx < total - 1) {
+      setTimeout(() => {
+        setSelected(null);
         setAnswers(newAnswers);
         setIdx(idx + 1);
-      } else {
+      }, 160);
+    } else {
+      setLoading(true);
+      try {
+        if (user?.id && !user.id.startsWith('local_')) {
+          const res = await submitTest(user.id, newAnswers, 'ipip-15-v1');
+          updateProfile({
+            scores: res.scores,
+            zScores: res.z_scores,
+            primaryArchetype: res.primary_archetype,
+            secondaryArchetype: res.secondary_archetype,
+            rawAnswers: newAnswers,
+            phase: 'phase1',
+          });
+        } else {
+          const scores = scoreAnswers(newAnswers, PHASE1_QUESTIONS);
+          updateProfile({ scores, rawAnswers: newAnswers, phase: 'phase1' });
+        }
+        router.replace('/onboarding/result');
+      } catch (err) {
+        console.error('Submit test failed:', err);
         const scores = scoreAnswers(newAnswers, PHASE1_QUESTIONS);
         updateProfile({ scores, rawAnswers: newAnswers, phase: 'phase1' });
         router.replace('/onboarding/result');
+      } finally {
+        setLoading(false);
       }
-    }, 160);
+    }
   };
 
   return (
@@ -118,50 +142,58 @@ export default function Phase1Screen() {
 
       {/* Likert circles — visual size gradient */}
       <View style={styles.likertRow}>
-        {OPTIONS.map(({ value, label }) => {
-          const size = 20 + value * 8; // 28 → 60px
-          const isActive = selected === value;
-          return (
-            <TouchableOpacity
-              key={value}
-              style={styles.optionCol}
-              onPress={() => advance(value)}
-              activeOpacity={0.75}
-            >
-              <View
-                style={[
-                  styles.circle,
-                  {
-                    width: size,
-                    height: size,
-                    borderRadius: size / 2,
-                    borderColor: isActive ? Colors.accent : Colors.line,
-                    backgroundColor: isActive ? Colors.accentDim : 'transparent',
-                  },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.circleLabel,
-                  isActive && { color: Colors.accent },
-                ]}
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <ActivityIndicator color={Colors.accent} size="large" />
+          </View>
+        ) : (
+          OPTIONS.map(({ value, label }) => {
+            const size = 20 + value * 8; // 28 → 60px
+            const isActive = selected === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={styles.optionCol}
+                onPress={() => advance(value)}
+                activeOpacity={0.75}
               >
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+                <View
+                  style={[
+                    styles.circle,
+                    {
+                      width: size,
+                      height: size,
+                      borderRadius: size / 2,
+                      borderColor: isActive ? Colors.accent : Colors.line,
+                      backgroundColor: isActive ? Colors.accentDim : 'transparent',
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.circleLabel,
+                    isActive && { color: Colors.accent },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </View>
 
       {/* Polarity labels */}
-      <View style={styles.polarRow}>
-        <Text style={styles.polarLabel}>DISAGREE</Text>
-        <Text style={styles.polarLabel}>AGREE</Text>
-      </View>
+      {!loading && (
+        <View style={styles.polarRow}>
+          <Text style={styles.polarLabel}>DISAGREE</Text>
+          <Text style={styles.polarLabel}>AGREE</Text>
+        </View>
+      )}
 
       {/* Bottom hint */}
       <Text style={styles.hint}>
-        Tap a circle · honest answers give accurate results
+        {loading ? 'Calculating your archetype...' : 'Tap a circle · honest answers give accurate results'}
       </Text>
     </View>
   );

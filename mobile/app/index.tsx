@@ -1,27 +1,30 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withTiming, 
-  withSequence,
   withDelay,
-  FadeIn,
   FadeInDown,
 } from 'react-native-reanimated';
 import { Colors, S, T, R } from '../constants/theme';
+import { useUser } from '../stores/userStore';
+import { createUser, login } from '../lib/api';
 
 const { width } = Dimensions.get('window');
 
 export default function LandingScreen() {
   const router = useRouter();
+  const { user, setUser } = useUser();
+  const [loading, setLoading] = useState(false);
 
   const lineProgress = useSharedValue(0);
 
@@ -32,6 +35,42 @@ export default function LandingScreen() {
   const animatedLineStyle = useAnimatedStyle(() => ({
     width: lineProgress.value * 48,
   }));
+
+  const handleBegin = async () => {
+    if (user?.id) {
+      router.push('/onboarding/phase1');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Generate a simple guest username
+      const guestName = `guest_${Math.random().toString(36).substring(2, 8)}`;
+      const newUser = await createUser(guestName);
+      await login(guestName);
+      
+      setUser({
+        id: newUser.id,
+        username: newUser.username,
+        phase: 'none',
+        isPublic: true,
+      });
+      
+      router.push('/onboarding/phase1');
+    } catch (err) {
+      console.error('Failed to initialize user:', err);
+      // Fallback: allow proceeding even if API fails (local-only mode)
+      setUser({
+        id: `local_${Date.now()}`,
+        username: 'Guest',
+        phase: 'none',
+        isPublic: true,
+      });
+      router.push('/onboarding/phase1');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -75,10 +114,15 @@ export default function LandingScreen() {
 
         <TouchableOpacity
           style={styles.primaryBtn}
-          onPress={() => router.push('/onboarding/phase1')}
+          onPress={handleBegin}
           activeOpacity={0.85}
+          disabled={loading}
         >
-          <Text style={styles.primaryBtnText}>BEGIN</Text>
+          {loading ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <Text style={styles.primaryBtnText}>BEGIN</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity

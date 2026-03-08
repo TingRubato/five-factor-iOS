@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -19,6 +20,7 @@ import Animated, {
 import { Colors, T, S } from '../../constants/theme';
 import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
+import { submitTest } from '../../lib/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -61,6 +63,7 @@ export default function Phase2Screen() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
+  const [loading, setLoading] = useState(false);
 
   // Reanimated shared values
   const progress = useSharedValue(0);
@@ -76,7 +79,8 @@ export default function Phase2Screen() {
     width: `${progress.value * 100}%`,
   }));
 
-  const handleAnswer = (value: number) => {
+  const handleAnswer = async (value: number) => {
+    if (loading) return;
     const newAnswers = { ...answers, [question.id]: value };
     setAnswers(newAnswers);
 
@@ -93,15 +97,44 @@ export default function Phase2Screen() {
         setCurrentIndex(currentIndex + 1);
       }
     } else {
-      // Phase 2 complete — combine with Phase 1 answers for full scoring
-      const phase1Answers = user?.rawAnswers ?? {};
-      const combinedAnswers = { ...phase1Answers, ...newAnswers };
-      const allScores = scoreAnswers(combinedAnswers, ALL_QUESTIONS);
-      updateProfile({
-        scores: allScores,
-        phase: 'phase2',
-      });
-      router.replace('/(tabs)/profile');
+      setLoading(true);
+      try {
+        // Phase 2 complete — combine with Phase 1 answers for full scoring
+        const phase1Answers = user?.rawAnswers ?? {};
+        const combinedAnswers = { ...phase1Answers, ...newAnswers };
+        
+        if (user?.id && !user.id.startsWith('local_')) {
+          const res = await submitTest(user.id, combinedAnswers, 'ipip-50-v1');
+          updateProfile({
+            scores: res.scores,
+            zScores: res.z_scores,
+            primaryArchetype: res.primary_archetype,
+            secondaryArchetype: res.secondary_archetype,
+            rawAnswers: combinedAnswers,
+            phase: 'phase2',
+          });
+        } else {
+          const allScores = scoreAnswers(combinedAnswers, ALL_QUESTIONS);
+          updateProfile({
+            scores: allScores,
+            rawAnswers: combinedAnswers,
+            phase: 'phase2',
+          });
+        }
+        router.replace('/(tabs)/profile');
+      } catch (err) {
+        console.error('Submit Phase 2 failed:', err);
+        const combinedAnswers = { ...(user?.rawAnswers ?? {}), ...newAnswers };
+        const allScores = scoreAnswers(combinedAnswers, ALL_QUESTIONS);
+        updateProfile({
+          scores: allScores,
+          rawAnswers: combinedAnswers,
+          phase: 'phase2',
+        });
+        router.replace('/(tabs)/profile');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -160,30 +193,37 @@ export default function Phase2Screen() {
 
       {/* Likert scale */}
       <View style={styles.likertContainer}>
-        {LIKERT_LABELS.map(({ value, label }) => (
-          <TouchableOpacity
-            key={value}
-            style={styles.likertBtn}
-            onPress={() => handleAnswer(value)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.likertDot,
-                { width: 12 + value * 6, height: 12 + value * 6 },
-                answers[question.id] === value && styles.likertDotSelected,
-              ]}
-            />
-            <Text
-              style={[
-                styles.likertLabel,
-                answers[question.id] === value && styles.likertLabelSelected,
-              ]}
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', height: 80, justifyContent: 'center' }}>
+            <ActivityIndicator color={Colors.accent} size="large" />
+            <Text style={{ marginTop: S[4], color: Colors.t3, fontSize: T.xs }}>Finalizing your profile...</Text>
+          </View>
+        ) : (
+          LIKERT_LABELS.map(({ value, label }) => (
+            <TouchableOpacity
+              key={value}
+              style={styles.likertBtn}
+              onPress={() => handleAnswer(value)}
+              activeOpacity={0.7}
             >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View
+                style={[
+                  styles.likertDot,
+                  { width: 12 + value * 6, height: 12 + value * 6 },
+                  answers[question.id] === value && styles.likertDotSelected,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.likertLabel,
+                  answers[question.id] === value && styles.likertLabelSelected,
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
       </View>
     </View>
   );
