@@ -16,6 +16,7 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { Colors, S, T, R } from '../constants/theme';
+import PressableScale from '../components/ui/PressableScale';
 import { useUser } from '../stores/userStore';
 import { createUser, login } from '../lib/api';
 
@@ -116,25 +117,26 @@ export default function LandingScreen() {
       >
         <Text style={styles.duration}>≈ 2 MIN · PHASE 1 OF 2</Text>
 
-        <TouchableOpacity
-          style={styles.primaryBtn}
+        <PressableScale
+          style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
           onPress={handleBegin}
-          activeOpacity={0.85}
           disabled={loading}
+          scale={0.97}
         >
           {loading ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
             <Text style={styles.primaryBtnText}>BEGIN</Text>
           )}
-        </TouchableOpacity>
+        </PressableScale>
 
-        <TouchableOpacity
+        <PressableScale
           onPress={() => router.push('/(tabs)/feed')}
-          activeOpacity={0.6}
+          scale={0.98}
+          haptic={false}
         >
           <Text style={styles.ghostLink}>Explore community without a profile →</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </Animated.View>
 
       {/* Version stamp */}

@@ -15,6 +15,7 @@ import Animated, {
   withTiming, 
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
+import LikertCircle from '../../components/ui/LikertCircle';
 import { PHASE1_QUESTIONS, scoreAnswers } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
@@ -162,33 +163,14 @@ export default function Phase1Screen() {
             const size = 20 + value * 8; // 28 → 60px
             const isActive = selected === value;
             return (
-              <TouchableOpacity
+              <LikertCircle
                 key={value}
-                style={styles.optionCol}
+                value={value}
+                label={label}
+                size={size}
+                isActive={isActive}
                 onPress={() => advance(value)}
-                activeOpacity={0.75}
-              >
-                <View
-                  style={[
-                    styles.circle,
-                    {
-                      width: size,
-                      height: size,
-                      borderRadius: size / 2,
-                      borderColor: isActive ? Colors.accent : Colors.line,
-                      backgroundColor: isActive ? Colors.accentDim : 'transparent',
-                    },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.circleLabel,
-                    isActive && { color: Colors.accent },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </TouchableOpacity>
+              />
             );
           })
         )}

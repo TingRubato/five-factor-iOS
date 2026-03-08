@@ -1,8 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import ArchetypeBadge from './ArchetypeBadge';
-import { Colors, T, S, R } from '../constants/theme';
+import { Colors, T, S, R, Shadows } from '../constants/theme';
 
 interface PostCardProps {
   id: string;
@@ -26,46 +33,61 @@ export default function PostCard({
   isSerendipity,
 }: PostCardProps) {
   const router = useRouter();
+  const scale = useSharedValue(1);
+  const shadowOpacity = useSharedValue(0.04);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.7}
+    <Pressable
+      onPressIn={() => {
+        scale.value = withSpring(0.975, { damping: 15, stiffness: 400 });
+        shadowOpacity.value = withSpring(0.01);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 12, stiffness: 300 });
+        shadowOpacity.value = withSpring(0.04);
+      }}
       onPress={() => {
         // Navigate to post detail or author profile
       }}
     >
-      <View style={styles.header}>
-        <View style={styles.authorRow}>
-          <Text style={styles.authorName}>{author}</Text>
-          {isSerendipity && (
-            <View style={styles.serendipityTag}>
-              <Text style={styles.serendipityText}>DIFFERENT VIEW</Text>
-            </View>
-          )}
+      <Animated.View style={[styles.card, cardStyle]}>
+        <View style={styles.header}>
+          <View style={styles.authorRow}>
+            <Text style={styles.authorName}>{author}</Text>
+            {isSerendipity && (
+              <View style={styles.serendipityTag}>
+                <Text style={styles.serendipityText}>DIFFERENT VIEW</Text>
+              </View>
+            )}
+          </View>
+          <Pressable
+            onPress={() => router.push(`/user/${authorId}`)}
+            hitSlop={8}
+          >
+            <ArchetypeBadge archetypeName={archetype} size="sm" />
+          </Pressable>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push(`/user/${authorId}`)}
-          hitSlop={8}
-        >
-          <ArchetypeBadge archetypeName={archetype} size="sm" />
-        </TouchableOpacity>
-      </View>
 
-      <Text style={styles.title} numberOfLines={2}>
-        {title}
-      </Text>
-
-      {body && (
-        <Text style={styles.body} numberOfLines={2}>
-          {body}
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
         </Text>
-      )}
 
-      {upvotes > 0 && (
-        <Text style={styles.upvotes}>{upvotes} upvotes</Text>
-      )}
-    </TouchableOpacity>
+        {body && (
+          <Text style={styles.body} numberOfLines={2}>
+            {body}
+          </Text>
+        )}
+
+        {upvotes > 0 && (
+          <Text style={styles.upvotes}>{upvotes} upvotes</Text>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -76,6 +98,7 @@ const styles = StyleSheet.create({
     borderRadius: R.md,
     borderWidth: 1,
     borderColor: Colors.line,
+    ...Shadows.sm,
   },
   header: {
     flexDirection: 'row',

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import TapRipple, { TapRippleHandle } from './TapRipple';
 import { View, StyleSheet, BackHandler } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, runOnJS } from 'react-native-reanimated';
@@ -82,6 +83,8 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
     return 'drift' as const;
   }, [act]);
 
+  const rippleRef = useRef<TapRippleHandle>(null);
+
   // Debounce guard against rapid tapping
   const lastNav = useRef(0);
   const canNavigate = useCallback(() => {
@@ -100,6 +103,7 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
   const advance = useCallback(() => {
     if (act === 0 || act === 5) return;
     if (!canNavigate()) return;
+    rippleRef.current?.trigger();
     setAct((a) => Math.min(a + 1, TOTAL_ACTS - 1));
   }, [act, canNavigate]);
 
@@ -245,6 +249,9 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
             />
           </View>
         )}
+
+        {/* Tap confirmation flash */}
+        <TapRipple ref={rippleRef} />
       </SafeAreaView>
     </GestureDetector>
   );
