@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  SlideInRight,
+  SlideOutLeft,
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import LikertCircle from '../../components/ui/LikertCircle';
+import QuizBackground from '../../components/ui/QuizBackground';
+import ProgressBar from '../../components/ui/ProgressBar';
 import { PHASE1_QUESTIONS, scoreAnswers } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
@@ -47,37 +48,8 @@ export default function Phase1Screen() {
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Reanimated Shared Values
-  const progress = useSharedValue(0);
-  const cardOpacity = useSharedValue(0);
-  const cardTranslateY = useSharedValue(20);
-
   const total = PHASE1_QUESTIONS.length;
   const q = PHASE1_QUESTIONS[idx] || PHASE1_QUESTIONS[0];
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    // Enter animation each new question
-    cardOpacity.value = 0;
-    cardTranslateY.value = 20;
-    
-    cardOpacity.value = withTiming(1, { duration: 280 });
-    cardTranslateY.value = withTiming(0, { duration: 280 });
-  }, [idx, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    progress.value = withTiming((idx + 1) / total, { duration: 350 });
-  }, [idx, isLoaded]);
-
-  const animatedProgressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
-
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateY: cardTranslateY.value }],
-  }));
 
   if (!isLoaded) {
     return (
@@ -132,10 +104,11 @@ export default function Phase1Screen() {
 
   return (
     <View style={styles.container}>
-      {/* Progress line */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, animatedProgressStyle]} />
-      </View>
+      {/* Dimension color aurora */}
+      <QuizBackground dimension={q.dimension} />
+
+      {/* Progress bar with pulsing dot */}
+      <ProgressBar value={(idx + 1) / total} />
 
       {/* Top bar */}
       <View style={styles.topBar}>
@@ -146,8 +119,13 @@ export default function Phase1Screen() {
         </Text>
       </View>
 
-      {/* Question */}
-      <Animated.View style={[styles.questionArea, animatedCardStyle]}>
+      {/* Question — directional slide transition */}
+      <Animated.View
+        key={q.id}
+        entering={SlideInRight.duration(300).springify().damping(20)}
+        exiting={SlideOutLeft.duration(250)}
+        style={styles.questionArea}
+      >
         <Text style={styles.questionText}>{q.text}</Text>
         <Text style={styles.questionTextZh}>{q.textZh}</Text>
       </Animated.View>
@@ -199,16 +177,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: S[12],
     justifyContent: 'center',
     paddingBottom: S[12],
-  },
-  progressTrack: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 2,
-    backgroundColor: Colors.line,
-  },
-  progressFill: {
-    height: 2,
-    backgroundColor: Colors.accent,
   },
   topBar: {
     position: 'absolute',

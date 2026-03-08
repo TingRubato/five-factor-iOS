@@ -18,6 +18,9 @@ import Animated, {
   SlideOutLeft,
 } from 'react-native-reanimated';
 import { Colors, T, S } from '../../constants/theme';
+import LikertCircle from '../../components/ui/LikertCircle';
+import QuizBackground from '../../components/ui/QuizBackground';
+import ProgressBar from '../../components/ui/ProgressBar';
 import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
@@ -66,20 +69,8 @@ export default function Phase2Screen() {
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
   const [loading, setLoading] = useState(false);
 
-  // Reanimated shared values
-  const progress = useSharedValue(0);
-
   const total = PHASE2_QUESTIONS.length;
   const question = PHASE2_QUESTIONS[currentIndex] || PHASE2_QUESTIONS[0];
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    progress.value = withTiming((currentIndex + 1) / total, { duration: 300 });
-  }, [currentIndex, isLoaded]);
-
-  const animatedProgressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
 
   if (!isLoaded) {
     return (
@@ -178,10 +169,11 @@ export default function Phase2Screen() {
 
   return (
     <View style={styles.container}>
-      {/* Progress bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, animatedProgressStyle]} />
-      </View>
+      {/* Dimension color aurora */}
+      <QuizBackground dimension={question.dimension} />
+
+      {/* Progress bar with pulsing dot */}
+      <ProgressBar value={(currentIndex + 1) / total} height={3} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -212,28 +204,14 @@ export default function Phase2Screen() {
           </View>
         ) : (
           LIKERT_LABELS.map(({ value, label }) => (
-            <TouchableOpacity
+            <LikertCircle
               key={value}
-              style={styles.likertBtn}
+              value={value}
+              label={label}
+              size={12 + value * 6}
+              isActive={answers[question.id] === value}
               onPress={() => handleAnswer(value)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.likertDot,
-                  { width: 12 + value * 6, height: 12 + value * 6 },
-                  answers[question.id] === value && styles.likertDotSelected,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.likertLabel,
-                  answers[question.id] === value && styles.likertLabelSelected,
-                ]}
-              >
-                {label}
-              </Text>
-            </TouchableOpacity>
+            />
           ))
         )}
       </View>
@@ -248,18 +226,6 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: S[12],
     justifyContent: 'center',
-  },
-  progressTrack: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: Colors.line,
-  },
-  progressFill: {
-    height: 3,
-    backgroundColor: Colors.accent,
   },
   header: {
     position: 'absolute',
