@@ -21,6 +21,7 @@ import { Colors, T, S } from '../../constants/theme';
 import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
+import { useQuizProgress } from '../../hooks/useQuizProgress';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -59,8 +60,8 @@ const INTERSTITIALS = [
 export default function Phase2Screen() {
   const router = useRouter();
   const { user, updateProfile } = useUser();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const { idx: currentIndex, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase2');
+  
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
   const [loading, setLoading] = useState(false);
@@ -69,21 +70,29 @@ export default function Phase2Screen() {
   const progress = useSharedValue(0);
 
   const total = PHASE2_QUESTIONS.length;
-  const question = PHASE2_QUESTIONS[currentIndex];
+  const question = PHASE2_QUESTIONS[currentIndex] || PHASE2_QUESTIONS[0];
 
   useEffect(() => {
+    if (!isLoaded) return;
     progress.value = withTiming((currentIndex + 1) / total, { duration: 300 });
-  }, [currentIndex]);
+  }, [currentIndex, isLoaded]);
 
   const animatedProgressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
   }));
 
+  if (!isLoaded) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.accent} size="large" />
+      </View>
+    );
+  }
+
   const handleAnswer = async (value: number) => {
     if (loading) return;
     const newAnswers = { ...answers, [question.id]: value };
-    setAnswers(newAnswers);
-
+    
     // Check for interstitial
     const interstitial = INTERSTITIALS.find(
       (i) => i.after === currentIndex + 1
@@ -91,10 +100,11 @@ export default function Phase2Screen() {
 
     if (currentIndex < total - 1) {
       if (interstitial) {
+        saveProgress(currentIndex, newAnswers); // Save before interstitial, but don't advance index yet
         setInterstitialData(interstitial);
         setShowInterstitial(true);
       } else {
-        setCurrentIndex(currentIndex + 1);
+        saveProgress(currentIndex + 1, newAnswers);
       }
     } else {
       setLoading(true);
@@ -121,6 +131,7 @@ export default function Phase2Screen() {
             phase: 'phase2',
           });
         }
+        await clearProgress();
         router.replace('/(tabs)/profile');
       } catch (err) {
         console.error('Submit Phase 2 failed:', err);
@@ -131,6 +142,7 @@ export default function Phase2Screen() {
           rawAnswers: combinedAnswers,
           phase: 'phase2',
         });
+        await clearProgress();
         router.replace('/(tabs)/profile');
       } finally {
         setLoading(false);
@@ -140,7 +152,7 @@ export default function Phase2Screen() {
 
   const dismissInterstitial = () => {
     setShowInterstitial(false);
-    setCurrentIndex(currentIndex + 1);
+    saveProgress(currentIndex + 1, answers);
   };
 
   if (showInterstitial) {

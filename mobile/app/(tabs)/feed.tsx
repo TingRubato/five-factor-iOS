@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
+import { useUser } from '../../stores/userStore';
+import { getFeed, FeedItem } from '../../lib/api';
 
 type FeedMode = 'default' | 'similar' | 'opposing';
 
@@ -20,67 +23,8 @@ const MODES: { key: FeedMode; label: string; desc: string }[] = [
   { key: 'opposing', label: 'Other Side', desc: 'Opposite thinkers, high quality' },
 ];
 
-const FEED = [
-  {
-    id: '1',
-    author: 'phantom_arc',
-    authorId: 'u1',
-    title: 'Why orchestral arrangement is the ultimate form of creative discipline',
-    body: 'The counterpoint between voice leading and harmonic rhythm mirrors system architecture in ways most engineers never consider.',
-    archetypeId: 'speculative_researcher',
-    upvotes: 42,
-    topic: 'MUSIC · ENGINEERING',
-    timeAgo: '2h',
-  },
-  {
-    id: '2',
-    author: 'null_pointer',
-    authorId: 'u2',
-    title: 'Hot take: consensus-driven design always kills the best ideas',
-    body: 'Every breakthrough I have seen came from someone willing to be wrong loudly rather than right quietly in a committee.',
-    archetypeId: 'blunt_challenger',
-    upvotes: 28,
-    topic: 'PRODUCT',
-    timeAgo: '4h',
-    isSerendipity: true,
-  },
-  {
-    id: '3',
-    author: 'silk_thread',
-    authorId: 'u3',
-    title: 'The beauty of imperfect generative systems',
-    body: 'Exploring Perlin noise textures that intentionally break symmetry. Controlled chaos as aesthetic philosophy.',
-    archetypeId: 'romantic_idealist',
-    upvotes: 35,
-    topic: 'GENERATIVE ART',
-    timeAgo: '6h',
-  },
-  {
-    id: '4',
-    author: 'iron_schedule',
-    authorId: 'u4',
-    title: 'ESP32 sensor array survived 6 months outdoors — detailed teardown',
-    body: 'Waterproofing failures, power budget surprises, and why watchdog timers saved my sanity.',
-    archetypeId: 'steady_executor',
-    upvotes: 67,
-    topic: 'EMBEDDED · DIY',
-    timeAgo: '12h',
-  },
-  {
-    id: '5',
-    author: 'open_loop',
-    authorId: 'u5',
-    title: 'My 3-month experiment: no planning, only doing',
-    body: 'What happens when you stop optimizing and start executing. Spoiler: you miss a lot of obvious optimizations but ship much more.',
-    archetypeId: 'adventurous_doer',
-    upvotes: 19,
-    topic: 'WORKFLOW',
-    timeAgo: '1d',
-  },
-];
-
 function ArchetypeChip({ archetypeId }: { archetypeId: string }) {
-  const a = ARCHETYPES[archetypeId];
+  const a = ARCHETYPES[archetypeId?.toLowerCase().replace(/ /g, '_')];
   if (!a) return null;
   return (
     <View style={[styles.chip, { backgroundColor: `${a.color}15` }]}>
@@ -89,7 +33,7 @@ function ArchetypeChip({ archetypeId }: { archetypeId: string }) {
   );
 }
 
-function PostCard({ item, onPress }: { item: typeof FEED[0]; onPress: () => void }) {
+function PostCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
@@ -97,7 +41,7 @@ function PostCard({ item, onPress }: { item: typeof FEED[0]; onPress: () => void
   const onPressOut = () =>
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
 
-  const archetype = ARCHETYPES[item.archetypeId];
+  const isSerendipity = false; // We can derive this later if backend flags it
 
   return (
     <TouchableOpacity
@@ -107,18 +51,18 @@ function PostCard({ item, onPress }: { item: typeof FEED[0]; onPress: () => void
       activeOpacity={1}
     >
       <Animated.View
-        style={[styles.card, item.isSerendipity && styles.cardSerendipity, { transform: [{ scale: scaleAnim }] }]}
+        style={[styles.card, isSerendipity && styles.cardSerendipity, { transform: [{ scale: scaleAnim }] }]}
       >
         {/* Top row */}
         <View style={styles.cardTop}>
-          <Text style={styles.topicTag}>{item.topic}</Text>
+          <Text style={styles.topicTag}>{item.topic_id || 'GENERAL'}</Text>
           <View style={styles.cardMeta}>
-            {item.isSerendipity && (
+            {isSerendipity && (
               <View style={styles.oppTag}>
                 <Text style={styles.oppTagText}>OPPOSITE</Text>
               </View>
             )}
-            <Text style={styles.timeAgo}>{item.timeAgo}</Text>
+            <Text style={styles.timeAgo}>Just now</Text>
           </View>
         </View>
 
@@ -136,8 +80,8 @@ function PostCard({ item, onPress }: { item: typeof FEED[0]; onPress: () => void
         <View style={styles.cardFooter}>
           <View style={styles.authorRow}>
             <View style={styles.avatarDot} />
-            <Text style={styles.authorName}>{item.author}</Text>
-            <ArchetypeChip archetypeId={item.archetypeId} />
+            <Text style={styles.authorName}>User {item.author_id.substring(0,4)}</Text>
+            <ArchetypeChip archetypeId={item.snapshot_archetype || ''} />
           </View>
           <Text style={styles.upvotes}>↑ {item.upvotes}</Text>
         </View>
@@ -148,7 +92,60 @@ function PostCard({ item, onPress }: { item: typeof FEED[0]; onPress: () => void
 
 export default function FeedScreen() {
   const router = useRouter();
+  const { user } = useUser();
   const [mode, setMode] = useState<FeedMode>('default');
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFeed() {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await getFeed(user.id, mode);
+        setFeed(res.items);
+      } catch (e) {
+        console.error("Error loading feed:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFeed();
+  }, [user?.id, mode]);
+
+  const renderEmptyState = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator color={Colors.accent} size="large" />
+          <Text style={styles.emptyText}>Syncing network...</Text>
+        </View>
+      );
+    }
+    if (!user?.id || user.phase === 'none') {
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>Identify yourself first.</Text>
+          <Text style={styles.emptyText}>You need a personality profile to align with the network.</Text>
+          <TouchableOpacity style={styles.ctaBtn} onPress={() => router.push('/onboarding/phase1')}>
+            <Text style={styles.ctaBtnText}>START ASSESSMENT</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>The network is quiet.</Text>
+        <Text style={styles.emptyText}>Be the catalyst. Start a new thread to influence the cluster.</Text>
+        <TouchableOpacity style={styles.ctaBtn} onPress={() => router.push('/(tabs)/create')}>
+          <Text style={styles.ctaBtnText}>NEW POST</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -189,12 +186,13 @@ export default function FeedScreen() {
 
       {/* Feed */}
       <FlatList
-        data={FEED}
+        data={feed}
         keyExtractor={(item) => item.id}
+        ListEmptyComponent={renderEmptyState}
         renderItem={({ item }) => (
           <PostCard
             item={item}
-            onPress={() => router.push(`/user/${item.authorId}`)}
+            onPress={() => router.push(`/user/${item.author_id}`)}
           />
         )}
         contentContainerStyle={styles.feedList}
@@ -385,5 +383,38 @@ const styles = StyleSheet.create({
     fontWeight: T.semibold,
     color: Colors.t2,
     letterSpacing: 0.5,
+  },
+
+  // Empty state
+  emptyContainer: {
+    padding: S[12],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyTitle: {
+    fontSize: T.lg,
+    fontWeight: T.bold,
+    color: Colors.black,
+    marginBottom: S[2],
+  },
+  emptyText: {
+    fontSize: T.sm,
+    color: Colors.t3,
+    textAlign: 'center',
+    marginBottom: S[8],
+    lineHeight: 20,
+  },
+  ctaBtn: {
+    backgroundColor: Colors.black,
+    paddingHorizontal: S[6],
+    paddingVertical: S[4],
+    borderRadius: R.sm,
+  },
+  ctaBtnText: {
+    color: Colors.white,
+    fontSize: T.sm,
+    fontWeight: T.bold,
+    letterSpacing: 1,
   },
 });

@@ -18,6 +18,7 @@ import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { PHASE1_QUESTIONS, scoreAnswers } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
+import { useQuizProgress } from '../../hooks/useQuizProgress';
 
 const { width: W } = Dimensions.get('window');
 
@@ -40,9 +41,8 @@ const OPTIONS = [
 export default function Phase1Screen() {
   const router = useRouter();
   const { user, updateProfile } = useUser();
+  const { idx, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase1');
 
-  const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,20 +52,22 @@ export default function Phase1Screen() {
   const cardTranslateY = useSharedValue(20);
 
   const total = PHASE1_QUESTIONS.length;
-  const q = PHASE1_QUESTIONS[idx];
+  const q = PHASE1_QUESTIONS[idx] || PHASE1_QUESTIONS[0];
 
   useEffect(() => {
+    if (!isLoaded) return;
     // Enter animation each new question
     cardOpacity.value = 0;
     cardTranslateY.value = 20;
     
     cardOpacity.value = withTiming(1, { duration: 280 });
     cardTranslateY.value = withTiming(0, { duration: 280 });
-  }, [idx]);
+  }, [idx, isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     progress.value = withTiming((idx + 1) / total, { duration: 350 });
-  }, [idx]);
+  }, [idx, isLoaded]);
 
   const animatedProgressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
@@ -75,6 +77,14 @@ export default function Phase1Screen() {
     opacity: cardOpacity.value,
     transform: [{ translateY: cardTranslateY.value }],
   }));
+
+  if (!isLoaded) {
+    return (
+      <View style={[styles.container, { alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.accent} size="large" />
+      </View>
+    );
+  }
 
   const advance = async (value: number) => {
     if (loading) return;
@@ -86,8 +96,7 @@ export default function Phase1Screen() {
     if (idx < total - 1) {
       setTimeout(() => {
         setSelected(null);
-        setAnswers(newAnswers);
-        setIdx(idx + 1);
+        saveProgress(idx + 1, newAnswers);
       }, 160);
     } else {
       setLoading(true);
@@ -106,11 +115,13 @@ export default function Phase1Screen() {
           const scores = scoreAnswers(newAnswers, PHASE1_QUESTIONS);
           updateProfile({ scores, rawAnswers: newAnswers, phase: 'phase1' });
         }
+        await clearProgress();
         router.replace('/onboarding/result');
       } catch (err) {
         console.error('Submit test failed:', err);
         const scores = scoreAnswers(newAnswers, PHASE1_QUESTIONS);
         updateProfile({ scores, rawAnswers: newAnswers, phase: 'phase1' });
+        await clearProgress();
         router.replace('/onboarding/result');
       } finally {
         setLoading(false);
