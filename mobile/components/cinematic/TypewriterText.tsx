@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Text, TextStyle } from 'react-native';
+import { Text, StyleProp, TextStyle } from 'react-native';
 import {
   useSharedValue,
   withTiming,
@@ -10,7 +10,7 @@ import {
 interface TypewriterTextProps {
   text: string;
   speed?: number;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   onComplete?: () => void;
   delay?: number;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Text, TextStyle } from 'react-native';
+import { Text, StyleProp, TextStyle } from 'react-native';
 import {
   useSharedValue,
   withTiming,
@@ -11,7 +11,7 @@ import {
 interface CountUpScoreProps {
   target: number;
   duration?: number;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   delay?: number;
 }
 
