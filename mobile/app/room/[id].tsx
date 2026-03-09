@@ -105,7 +105,9 @@ export default function RoomScreen() {
     if (!roomId || !composerText.trim()) return;
     setPosting(true);
     try {
-      await createRoomPost(roomId, composerText.trim(), composerText.trim());
+      const text = composerText.trim();
+      const title = text.length > 60 ? text.substring(0, 60) + '...' : text;
+      await createRoomPost(roomId, title, text);
       setComposerText('');
       fetchPosts();
     } catch {

@@ -8,13 +8,17 @@ import {
   saveUserToStorage,
   loadUserFromStorage,
 } from '../stores/userStore';
+import { bootstrapAuth } from '../lib/api';
 
 export default function RootLayout() {
   const [user, setUserRaw] = useState<UserProfile | null>(null);
 
-  // Hydrate from storage once on mount — silent, no splash needed
+  // Hydrate from storage once on mount — restore user + auth token
   useEffect(() => {
-    loadUserFromStorage().then((stored) => {
+    Promise.all([
+      loadUserFromStorage(),
+      bootstrapAuth(),
+    ]).then(([stored]) => {
       if (stored) setUserRaw(stored);
     });
   }, []);

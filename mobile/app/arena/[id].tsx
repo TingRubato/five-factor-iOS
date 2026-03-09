@@ -73,7 +73,6 @@ export default function ArenaScreen() {
     if (!arenaId || !composerText.trim()) return;
     setPosting(true);
     try {
-      const forceSide = defecting ? undefined : undefined; // auto-assign
       await createArenaPost(arenaId, composerText.trim(), defecting ? (userSide === 1 ? 2 : 1) : undefined);
       setComposerText('');
       setDefecting(false);
