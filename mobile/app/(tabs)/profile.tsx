@@ -1,20 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { 
-  FadeIn, 
+import Animated, {
+  FadeIn,
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName, ARCHETYPES } from '../../lib/archetypes';
+import { getUserRooms } from '../../lib/api';
 import RadarChart from '../../components/RadarChart';
+import ArchetypeCard from '../../components/share/ArchetypeCard';
+import RoomCard from '../../components/RoomCard';
+import PressableScale from '../../components/ui/PressableScale';
+import { shareCard } from '../../lib/share';
 
 const { width: W } = Dimensions.get('window');
 const CHART = W - S[12] * 2 - S[8] * 2;
@@ -27,9 +33,21 @@ const DIM_FULL: Record<string, string> = {
   N: 'Neuroticism',
 };
 
+interface UserRoom {
+  room_id: string;
+  name: string;
+  name_zh: string;
+  dimension: string | null;
+  room_type: string;
+  color: string;
+  role: 'home' | 'shadow' | 'joined';
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useUser();
+  const shareRef = useRef<View>(null);
+  const [myRooms, setMyRooms] = useState<UserRoom[]>([]);
 
   const phase = user?.phase || 'none';
   const scores = user?.scores || { O: 50, C: 50, E: 50, A: 50, N: 50 };
@@ -38,6 +56,24 @@ export default function ProfileScreen() {
 
   const isPhase1 = phase === 'phase1';
   const isComplete = phase === 'phase2';
+
+  const fetchRooms = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const rooms = await getUserRooms(user.id);
+      setMyRooms(rooms);
+    } catch {
+      // silent
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
+
+  const joinDate = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en', { month: 'short', year: 'numeric' }).toUpperCase()
+    : 'N/A';
 
   if (phase === 'none') {
     return (
@@ -87,20 +123,94 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Archetype */}
+        {/* Brutalist Identity Card */}
         {archetype && (
-          <View style={styles.archetypeCard}>
-            <Text style={styles.archetypeLabel}>PRIMARY ARCHETYPE</Text>
-            <View style={[styles.badge, { backgroundColor: `${archetype.color}15` }]}>
-              <Text style={[styles.badgeShort, { color: archetype.color }]}>
-                {archetype.shortLabel}
-              </Text>
+          <>
+            {/* Meta row */}
+            <View style={styles.identityMeta}>
+              <View style={[styles.identityMetaCell, styles.identityMetaBorder]}>
+                <Text style={styles.identityMetaLabel}>ARCHETYPE</Text>
+                <Text style={styles.identityMetaValue}>{archetype.shortLabel}</Text>
+              </View>
+              <View style={[styles.identityMetaCell, styles.identityMetaBorder]}>
+                <Text style={styles.identityMetaLabel}>PHASE</Text>
+                <Text style={styles.identityMetaValue}>{isComplete ? '2' : '1'}</Text>
+              </View>
+              <View style={styles.identityMetaCell}>
+                <Text style={styles.identityMetaLabel}>SINCE</Text>
+                <Text style={styles.identityMetaValue}>{joinDate}</Text>
+              </View>
             </View>
-            <Text style={styles.archetypeName}>{archetype.nameEn}</Text>
-            <Text style={styles.archetypeZh}>{archetype.nameZh}</Text>
-            <Text style={styles.archetypeDesc}>{archetype.description}</Text>
+
+            {/* Name card */}
+            <View style={styles.archetypeCard}>
+              <Text style={[styles.archetypeZh, { color: archetype.color }]}>
+                {archetype.nameZh}
+              </Text>
+              <Text style={styles.archetypeName}>{archetype.nameEn}</Text>
+              <Text style={styles.archetypeDesc}>{archetype.description}</Text>
+            </View>
+
+            {/* Share button */}
+            <PressableScale
+              style={styles.shareBtn}
+              onPress={() => shareCard(shareRef)}
+              scale={0.98}
+            >
+              <Text style={styles.shareBtnText}>SHARE YOUR ARCHETYPE</Text>
+            </PressableScale>
+
+            {/* Off-screen share card */}
+            <View style={styles.offScreen}>
+              <ArchetypeCard
+                ref={shareRef}
+                archetypeName={archetype.nameEn}
+                scores={scores}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Your Rooms */}
+        {myRooms.length > 0 && (
+          <View style={styles.roomsSection}>
+            <Text style={styles.sectionLabel}>YOUR ROOMS</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.roomsScroll}
+            >
+              {myRooms.map((room) => (
+                <RoomCard
+                  key={room.room_id}
+                  name={room.name}
+                  nameZh={room.name_zh}
+                  color={room.color}
+                  roomType={room.room_type as any}
+                  memberCount={0}
+                  role={room.role}
+                  onPress={() => router.push(`/room/${room.room_id}`)}
+                />
+              ))}
+            </ScrollView>
           </View>
         )}
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCell, styles.statCellBorder]}>
+            <Text style={styles.statNumber}>{myRooms.length}</Text>
+            <Text style={styles.statLabel}>ROOMS</Text>
+          </View>
+          <View style={[styles.statCell, styles.statCellBorder]}>
+            <Text style={styles.statNumber}>{isComplete ? '50' : '15'}</Text>
+            <Text style={styles.statLabel}>ANSWERS</Text>
+          </View>
+          <View style={styles.statCell}>
+            <Text style={styles.statNumber}>{isComplete ? 'FULL' : 'PARTIAL'}</Text>
+            <Text style={styles.statLabel}>PRECISION</Text>
+          </View>
+        </View>
 
         {/* Radar */}
         <View style={styles.radarCard}>
@@ -246,45 +356,55 @@ const styles = StyleSheet.create({
     fontWeight: T.medium,
   },
 
+  // Identity meta row
+  identityMeta: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: Colors.black,
+  },
+  identityMetaCell: {
+    flex: 1,
+    padding: S[4],
+    alignItems: 'center',
+  },
+  identityMetaBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.black,
+  },
+  identityMetaLabel: {
+    fontSize: 8,
+    fontWeight: T.bold,
+    letterSpacing: 1.5,
+    color: Colors.t3,
+  },
+  identityMetaValue: {
+    fontSize: T.sm,
+    fontWeight: T.bold,
+    color: Colors.black,
+    marginTop: 2,
+  },
+
   // Archetype card
   archetypeCard: {
     backgroundColor: Colors.card,
-    borderRadius: R.md,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderTopWidth: 0,
+    borderColor: Colors.black,
     padding: S[8],
     alignItems: 'center',
     gap: S[4],
-    ...Shadows.sm,
-  },
-  archetypeLabel: {
-    fontSize: T.xs,
-    fontWeight: T.bold,
-    color: Colors.t3,
-    letterSpacing: 2.5,
-  },
-  badge: {
-    paddingHorizontal: S[6],
-    paddingVertical: S[2],
-    borderRadius: R.sm,
-  },
-  badgeShort: {
-    fontSize: T.lg,
-    fontWeight: T.bold,
-    letterSpacing: 2,
   },
   archetypeName: {
-    fontSize: T.xxl,
+    fontSize: T.xl,
     fontWeight: T.thin,
     color: Colors.black,
     letterSpacing: 1,
     textAlign: 'center',
-    lineHeight: 36,
+    fontStyle: 'italic',
   },
   archetypeZh: {
-    fontSize: T.base,
-    fontWeight: T.light,
-    color: Colors.t2,
+    fontSize: T.xxl,
+    fontWeight: T.bold,
     letterSpacing: 3,
   },
   archetypeDesc: {
@@ -293,6 +413,69 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
     paddingHorizontal: S[4],
+  },
+
+  // Share button
+  shareBtn: {
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: Colors.black,
+    paddingVertical: S[6],
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+  },
+  shareBtnText: {
+    fontSize: 9,
+    fontWeight: T.bold,
+    letterSpacing: 2,
+    color: Colors.black,
+  },
+  offScreen: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+  },
+
+  // Rooms section
+  roomsSection: {
+    gap: S[4],
+  },
+  sectionLabel: {
+    fontSize: T.xs,
+    fontWeight: T.bold,
+    letterSpacing: 2.5,
+    color: Colors.t3,
+  },
+  roomsScroll: {
+    gap: S[4],
+  },
+
+  // Stats grid
+  statsGrid: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: Colors.black,
+  },
+  statCell: {
+    flex: 1,
+    padding: S[6],
+    alignItems: 'center',
+    gap: 2,
+  },
+  statCellBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.black,
+  },
+  statNumber: {
+    fontSize: T.lg,
+    fontWeight: T.bold,
+    color: Colors.black,
+  },
+  statLabel: {
+    fontSize: 8,
+    fontWeight: T.bold,
+    letterSpacing: 1,
+    color: Colors.t3,
   },
 
   // Radar card

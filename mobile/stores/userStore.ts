@@ -28,6 +28,7 @@ export interface UserProfile {
   secondaryArchetype?: string;
   phase: 'none' | 'phase1' | 'phase2';
   isPublic: boolean;
+  createdAt?: string;
 }
 
 export interface UserState {

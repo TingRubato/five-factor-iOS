@@ -1,19 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
 import { useUser } from '../../stores/userStore';
-import { getFeed, FeedItem } from '../../lib/api';
+import { getFeed, FeedItem, getArenas } from '../../lib/api';
+import type { Arena } from '../../lib/arenas';
+import PressableScale from '../../components/ui/PressableScale';
 
 type FeedMode = 'default' | 'similar' | 'opposing';
 
@@ -96,6 +98,19 @@ export default function FeedScreen() {
   const [mode, setMode] = useState<FeedMode>('default');
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeArena, setActiveArena] = useState<Arena | null>(null);
+
+  const DIM_COLORS: Record<string, string> = {
+    O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
+  };
+
+  useEffect(() => {
+    getArenas('active')
+      .then((arenas) => {
+        if (arenas.length > 0) setActiveArena(arenas[0]);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function loadFeed() {
@@ -188,6 +203,41 @@ export default function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          activeArena ? (
+            <PressableScale
+              style={styles.arenaBanner}
+              onPress={() => router.push(`/arena/${activeArena.id}`)}
+              scale={0.98}
+            >
+              <View style={styles.arenaBannerColors}>
+                <View
+                  style={[
+                    styles.arenaBannerHalf,
+                    { backgroundColor: (DIM_COLORS[activeArena.dim1] ?? Colors.t3) + '25' },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.arenaBannerHalf,
+                    { backgroundColor: (DIM_COLORS[activeArena.dim2] ?? Colors.t3) + '25' },
+                  ]}
+                />
+              </View>
+              <View style={styles.arenaBannerBody}>
+                <Text style={styles.arenaBannerTopic}>
+                  "{activeArena.topic}"
+                </Text>
+                <View style={styles.arenaBannerMeta}>
+                  <Text style={styles.arenaBannerLabel}>
+                    {activeArena.side1_label} vs {activeArena.side2_label}
+                  </Text>
+                  <Text style={styles.arenaBannerCta}>JOIN THE DEBATE →</Text>
+                </View>
+              </View>
+            </PressableScale>
+          ) : null
+        }
         ListEmptyComponent={renderEmptyState}
         renderItem={({ item }) => (
           <PostCard
@@ -383,6 +433,50 @@ const styles = StyleSheet.create({
     fontWeight: T.semibold,
     color: Colors.t2,
     letterSpacing: 0.5,
+  },
+
+  // Arena banner
+  arenaBanner: {
+    borderWidth: 1,
+    borderColor: Colors.black,
+    borderRadius: R.md,
+    overflow: 'hidden',
+    marginBottom: S[4],
+  },
+  arenaBannerColors: {
+    flexDirection: 'row',
+    height: 4,
+  },
+  arenaBannerHalf: {
+    flex: 1,
+  },
+  arenaBannerBody: {
+    padding: S[6],
+    gap: S[4],
+  },
+  arenaBannerTopic: {
+    fontSize: T.lg,
+    fontWeight: T.semibold,
+    color: Colors.black,
+    fontStyle: 'italic',
+    lineHeight: 26,
+  },
+  arenaBannerMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  arenaBannerLabel: {
+    fontSize: 8,
+    fontWeight: T.bold,
+    color: Colors.t3,
+    letterSpacing: 1,
+  },
+  arenaBannerCta: {
+    fontSize: 9,
+    fontWeight: T.bold,
+    color: Colors.accent,
+    letterSpacing: 1,
   },
 
   // Empty state
