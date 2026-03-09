@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface UserProfile {
   id: string;
   username: string;
+  isGuest: boolean;
+  authProvider?: 'apple' | 'google' | 'phone';
   rawAnswers?: Record<number, number>;
   scores?: {
     O: number;
@@ -32,12 +34,14 @@ export interface UserState {
   user: UserProfile | null;
   setUser: (user: UserProfile | null) => void;
   updateProfile: (partial: Partial<UserProfile>) => void;
+  resetAssessment: () => void;
 }
 
 export const UserContext = createContext<UserState>({
   user: null,
   setUser: () => {},
   updateProfile: () => {},
+  resetAssessment: () => {},
 });
 
 export function useUser() {

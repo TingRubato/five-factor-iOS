@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useCallback, useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   UserContext,
   UserProfile,
@@ -27,28 +28,49 @@ export default function RootLayout() {
   // updateProfile merges partial and persists the merged result
   const updateProfile = useCallback((partial: Partial<UserProfile>) => {
     setUserRaw((prev) => {
-      const updated = prev ? { ...prev, ...partial } : null;
-      if (updated) saveUserToStorage(updated);
+      if (!prev) return null;
+      const updated = { ...prev, ...partial };
+      saveUserToStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const resetAssessment = useCallback(() => {
+    setUserRaw((prev) => {
+      if (!prev) return null;
+      const updated: UserProfile = {
+        ...prev,
+        scores: undefined,
+        zScores: undefined,
+        primaryArchetype: undefined,
+        secondaryArchetype: undefined,
+        phase: 'none',
+        rawAnswers: undefined,
+      };
+      saveUserToStorage(updated);
       return updated;
     });
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, setUser, updateProfile }}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" options={{ animation: 'fade' }} />
-        <Stack.Screen name="onboarding" options={{ animation: 'none' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen
-          name="user/[id]"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="settings"
-          options={{ animation: 'slide_from_right' }}
-        />
-      </Stack>
-    </UserContext.Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <UserContext.Provider value={{ user, setUser, updateProfile, resetAssessment }}>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" options={{ animation: 'fade' }} />
+          <Stack.Screen name="auth" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="onboarding" options={{ animation: 'none' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+          <Stack.Screen
+            name="user/[id]"
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{ animation: 'slide_from_right' }}
+          />
+        </Stack>
+      </UserContext.Provider>
+    </GestureHandlerRootView>
   );
 }

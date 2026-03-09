@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { 
@@ -18,14 +16,12 @@ import Animated, {
 import { Colors, S, T, R } from '../constants/theme';
 import PressableScale from '../components/ui/PressableScale';
 import { useUser } from '../stores/userStore';
-import { createUser, login } from '../lib/api';
 
 const { width } = Dimensions.get('window');
 
 export default function LandingScreen() {
   const router = useRouter();
-  const { user, setUser } = useUser();
-  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
 
   const lineProgress = useSharedValue(0);
 
@@ -37,44 +33,18 @@ export default function LandingScreen() {
     width: lineProgress.value * 48,
   }));
 
-  const handleBegin = async () => {
+  const handleBegin = () => {
     if (user?.id) {
-      router.push('/onboarding/phase1');
+      // Already have a user — go straight to quiz or tabs
+      if (user.phase !== 'none') {
+        router.push('/(tabs)/feed');
+      } else {
+        router.push('/onboarding/phase1');
+      }
       return;
     }
-
-    setLoading(true);
-    try {
-      // Generate a simple guest username and credentials
-      const guestId = Math.random().toString(36).substring(2, 8);
-      const guestName = `guest_${guestId}`;
-      const guestEmail = `${guestName}@temporary.archetype.app`;
-      const guestPass = `pass_${guestId}_${Math.random().toString(36).substring(2, 8)}`;
-
-      const newUser = await createUser(guestName, guestEmail, guestPass);
-      await login(guestName, guestPass);
-      
-      setUser({
-        id: newUser.id,
-        username: newUser.username,
-        phase: 'none',
-        isPublic: true,
-      });
-      
-      router.push('/onboarding/phase1');
-    } catch (err) {
-      console.error('Failed to initialize user:', err);
-      // Fallback: allow proceeding even if API fails (local-only mode)
-      setUser({
-        id: `local_${Date.now()}`,
-        username: 'Guest',
-        phase: 'none',
-        isPublic: true,
-      });
-      router.push('/onboarding/phase1');
-    } finally {
-      setLoading(false);
-    }
+    // Route to auth screen for login / guest flow
+    router.push('/auth');
   };
 
   return (
@@ -118,16 +88,11 @@ export default function LandingScreen() {
         <Text style={styles.duration}>≈ 2 MIN · PHASE 1 OF 2</Text>
 
         <PressableScale
-          style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+          style={styles.primaryBtn}
           onPress={handleBegin}
-          disabled={loading}
           scale={0.97}
         >
-          {loading ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.primaryBtnText}>BEGIN</Text>
-          )}
+          <Text style={styles.primaryBtnText}>BEGIN</Text>
         </PressableScale>
 
         <PressableScale
