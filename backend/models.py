@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, Boolean, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -115,3 +115,51 @@ class Post(Base):
     author = relationship("User", back_populates="posts")
     topic = relationship("Topic", back_populates="posts")
     room = relationship("Room", back_populates="posts")
+
+
+class Arena(Base):
+    __tablename__ = 'arenas'
+
+    id = Column(String(36), primary_key=True, index=True)
+    topic = Column(String(300), nullable=False)
+    topic_zh = Column(String(300), nullable=False)
+    dim1 = Column(String(5))  # e.g. "C"
+    dim2 = Column(String(5))  # e.g. "O"
+    side1_label = Column(String(100))
+    side2_label = Column(String(100))
+    status = Column(String(20), default="upcoming")  # upcoming|active|voting|closed
+    starts_at = Column(DateTime, nullable=True)
+    voting_at = Column(DateTime, nullable=True)
+    ends_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    posts = relationship("ArenaPost", back_populates="arena")
+    votes = relationship("ArenaVote", back_populates="arena")
+
+
+class ArenaPost(Base):
+    __tablename__ = 'arena_posts'
+
+    id = Column(String(36), primary_key=True, index=True)
+    arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)
+    user_id = Column(String(36), ForeignKey('users.id'), index=True)
+    side = Column(Integer)  # 1 or 2
+    body = Column(Text, nullable=False)
+    is_defector = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    arena = relationship("Arena", back_populates="posts")
+    user = relationship("User")
+
+
+class ArenaVote(Base):
+    __tablename__ = 'arena_votes'
+
+    id = Column(String(36), primary_key=True, index=True)
+    arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)
+    voter_id = Column(String(36), ForeignKey('users.id'), index=True)
+    voted_side = Column(Integer)  # 1 or 2
+    created_at = Column(DateTime, server_default=func.now())
+
+    arena = relationship("Arena", back_populates="votes")
+    voter = relationship("User")

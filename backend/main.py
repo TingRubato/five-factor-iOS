@@ -17,6 +17,7 @@ from backend import schemas
 from backend.auth import create_access_token, get_current_user, verify_password, get_password_hash
 from backend.routes.auth import router as auth_router
 from backend.routes.rooms import router as rooms_router
+from backend.routes.arenas import router as arenas_router
 
 from backend.config import settings
 
@@ -37,6 +38,7 @@ app = FastAPI(title=settings.APP_NAME, version="1.0.0", lifespan=lifespan)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(rooms_router, prefix="/api")
+app.include_router(arenas_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

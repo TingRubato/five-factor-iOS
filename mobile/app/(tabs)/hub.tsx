@@ -16,7 +16,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
-import { getRooms, getUserRooms } from '../../lib/api';
+import { getRooms, getUserRooms, getArenas } from '../../lib/api';
+import type { Arena } from '../../lib/arenas';
 import RoomCard from '../../components/RoomCard';
 import PressableScale from '../../components/ui/PressableScale';
 
@@ -48,17 +49,20 @@ export default function HubScreen() {
 
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [myRooms, setMyRooms] = useState<UserRoom[]>([]);
+  const [activeArenas, setActiveArenas] = useState<Arena[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [allRooms, userRooms] = await Promise.all([
+      const [allRooms, userRooms, arenas] = await Promise.all([
         getRooms().catch(() => []),
         user?.id ? getUserRooms(user.id).catch(() => []) : Promise.resolve([]),
+        getArenas('active').catch(() => []),
       ]);
       setRooms(allRooms);
       setMyRooms(userRooms);
+      setActiveArenas(arenas);
     } catch {
       // Silently fail — show empty state
     } finally {
@@ -168,23 +172,56 @@ export default function HubScreen() {
             <Animated.View entering={FadeInDown.delay(100).duration(400)}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>ARENA</Text>
-                <Text style={styles.sectionLabel}>COMING SOON</Text>
+                <Text style={styles.sectionLabel}>
+                  {activeArenas.length > 0 ? 'ACTIVE' : 'COMING SOON'}
+                </Text>
               </View>
-              <View style={styles.arenaCard}>
-                <View style={styles.arenaColors}>
-                  <View style={[styles.arenaHalf, { backgroundColor: '#30B0C720' }]} />
-                  <View style={[styles.arenaHalf, { backgroundColor: '#AF52DE20' }]} />
-                </View>
-                <View style={styles.arenaBody}>
-                  <Text style={styles.arenaTopic}>
-                    "Structure kills creativity"
-                  </Text>
-                  <View style={styles.arenaMeta}>
-                    <Text style={styles.arenaMetaText}>HIGH C vs HIGH O</Text>
-                    <Text style={styles.arenaMetaText}>5 DAYS</Text>
+              {activeArenas.map((arena) => {
+                const DIM_COLORS: Record<string, string> = {
+                  O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
+                };
+                const c1 = DIM_COLORS[arena.dim1] ?? Colors.t3;
+                const c2 = DIM_COLORS[arena.dim2] ?? Colors.t3;
+                return (
+                  <PressableScale
+                    key={arena.id}
+                    style={styles.arenaCard}
+                    onPress={() => router.push(`/arena/${arena.id}`)}
+                    scale={0.98}
+                  >
+                    <View style={styles.arenaColors}>
+                      <View style={[styles.arenaHalf, { backgroundColor: c1 + '30' }]} />
+                      <View style={[styles.arenaHalf, { backgroundColor: c2 + '30' }]} />
+                    </View>
+                    <View style={styles.arenaBody}>
+                      <Text style={styles.arenaTopic}>"{arena.topic}"</Text>
+                      <View style={styles.arenaMeta}>
+                        <Text style={styles.arenaMetaText}>
+                          {arena.side1_label} vs {arena.side2_label}
+                        </Text>
+                        <Text style={styles.arenaMetaText}>
+                          {arena.side1_count + arena.side2_count} POSTS
+                        </Text>
+                      </View>
+                    </View>
+                  </PressableScale>
+                );
+              })}
+              {activeArenas.length === 0 && (
+                <View style={styles.arenaCard}>
+                  <View style={styles.arenaColors}>
+                    <View style={[styles.arenaHalf, { backgroundColor: '#30B0C720' }]} />
+                    <View style={[styles.arenaHalf, { backgroundColor: '#AF52DE20' }]} />
+                  </View>
+                  <View style={styles.arenaBody}>
+                    <Text style={styles.arenaTopic}>"Structure kills creativity"</Text>
+                    <View style={styles.arenaMeta}>
+                      <Text style={styles.arenaMetaText}>HIGH C vs HIGH O</Text>
+                      <Text style={styles.arenaMetaText}>COMING SOON</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              )}
             </Animated.View>
 
             {/* ── ALL ROOMS ── */}

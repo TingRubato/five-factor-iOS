@@ -228,6 +228,36 @@ export async function getUserRooms(userId: string) {
   return res.data;
 }
 
+// ── Arenas ───────────────────────────────────────────────────
+
+export async function getArenas(status?: string) {
+  const res = await client.get('/api/arenas', { params: status ? { status_filter: status } : {} });
+  return res.data;
+}
+
+export async function getArena(arenaId: string) {
+  const res = await client.get(`/api/arenas/${arenaId}`);
+  return res.data;
+}
+
+export async function getArenaPosts(arenaId: string, side?: 1 | 2) {
+  const res = await client.get(`/api/arenas/${arenaId}/posts`, { params: side ? { side } : {} });
+  return res.data;
+}
+
+export async function createArenaPost(arenaId: string, body: string, forceSide?: number) {
+  const res = await client.post(`/api/arenas/${arenaId}/posts`, {
+    body,
+    force_side: forceSide ?? null,
+  });
+  return res.data;
+}
+
+export async function voteArena(arenaId: string, side: 1 | 2) {
+  const res = await client.post(`/api/arenas/${arenaId}/vote`, { side });
+  return res.data;
+}
+
 // ── Test Submission ───────────────────────────────────────────
 
 export async function submitTest(
