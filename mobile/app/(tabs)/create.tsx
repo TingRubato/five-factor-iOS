@@ -1,5 +1,5 @@
 // Create post screen
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
-import { createPost } from '../../lib/api';
+import { createPost, createRoomPost, getUserRooms } from '../../lib/api';
 
 const TOPICS = [
   'MUSIC · ENGINEERING',
@@ -34,11 +33,21 @@ export default function CreateScreen() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [topic, setTopic] = useState<string | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [myRooms, setMyRooms] = useState<{ room_id: string; name: string; color: string; role: string }[]>([]);
   const [posting, setPosting] = useState(false);
 
   const archetype = user?.primaryArchetype
     ? getArchetypeByName(user.primaryArchetype)
     : null;
+
+  useEffect(() => {
+    if (user?.id) {
+      getUserRooms(user.id)
+        .then(setMyRooms)
+        .catch(() => {});
+    }
+  }, [user?.id]);
 
   const titleLen = title.length;
   const bodyLen = body.length;
@@ -47,9 +56,13 @@ export default function CreateScreen() {
     if (!title.trim() || !body.trim()) return;
     setPosting(true);
     try {
-      await createPost(user!.id, title.trim(), body.trim(), topic ?? undefined);
+      if (selectedRoom) {
+        await createRoomPost(selectedRoom, title.trim(), body.trim());
+      } else {
+        await createPost(user!.id, title.trim(), body.trim(), topic ?? undefined);
+      }
     } catch (e) {
-      console.warn('createPost failed:', e);
+      console.warn('Post failed:', e);
     }
     setPosting(false);
     router.replace('/(tabs)/feed');
@@ -138,6 +151,63 @@ export default function CreateScreen() {
             textAlignVertical="top"
           />
           <Text style={styles.charCount}>{bodyLen}/2000</Text>
+
+          {/* Room selector */}
+          {myRooms.length > 0 && (
+            <View style={styles.topicSection}>
+              <Text style={styles.topicLabel}>POST TO ROOM</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.topicList}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.topicTag,
+                    !selectedRoom && styles.topicTagActive,
+                  ]}
+                  onPress={() => setSelectedRoom(null)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.topicTagText,
+                      !selectedRoom && styles.topicTagTextActive,
+                    ]}
+                  >
+                    GENERAL
+                  </Text>
+                </TouchableOpacity>
+                {myRooms.map((room) => (
+                  <TouchableOpacity
+                    key={room.room_id}
+                    style={[
+                      styles.topicTag,
+                      selectedRoom === room.room_id && {
+                        backgroundColor: room.color,
+                        borderColor: room.color,
+                      },
+                    ]}
+                    onPress={() =>
+                      setSelectedRoom(
+                        selectedRoom === room.room_id ? null : room.room_id
+                      )
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.topicTagText,
+                        selectedRoom === room.room_id && styles.topicTagTextActive,
+                      ]}
+                    >
+                      {room.name.replace('The ', '').toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Topic picker */}
           <View style={styles.topicSection}>

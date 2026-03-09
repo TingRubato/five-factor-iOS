@@ -1,288 +1,389 @@
-import { useState } from 'react';
+/**
+ * Hub — Community center with room browser and arena section.
+ */
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
   ScrollView,
-  Image,
-  Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { 
-  FadeIn, 
-  FadeInDown,
-} from 'react-native-reanimated';
-import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
+import { getRooms, getUserRooms } from '../../lib/api';
+import RoomCard from '../../components/RoomCard';
+import PressableScale from '../../components/ui/PressableScale';
 
-const { width: W } = Dimensions.get('window');
+interface RoomData {
+  id: string;
+  dimension: string | null;
+  name: string;
+  name_zh: string;
+  description: string | null;
+  room_type: 'dimension' | 'commons' | 'shadow';
+  color: string;
+  member_count: number;
+}
 
-const PEERS = [
-  { id: 'u1', name: 'Elena Ross', match: 94, role: 'Connector', image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200' },
-  { id: 'u2', name: 'Marcus Chen', match: 88, role: 'Synthesizer', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200' },
-  { id: 'u3', name: 'Sarah Al-Fayed', match: 82, role: 'Architect', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200' },
-  { id: 'u4', name: 'David Oyelowo', match: 79, role: 'Catalyst', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200' },
-];
+interface UserRoom {
+  room_id: string;
+  name: string;
+  name_zh: string;
+  dimension: string | null;
+  room_type: string;
+  color: string;
+  role: 'home' | 'shadow' | 'joined';
+}
 
 export default function HubScreen() {
   const router = useRouter();
   const { user } = useUser();
   const archetype = getArchetypeByName(user?.primaryArchetype || 'Explorer Creator');
 
+  const [rooms, setRooms] = useState<RoomData[]>([]);
+  const [myRooms, setMyRooms] = useState<UserRoom[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [allRooms, userRooms] = await Promise.all([
+        getRooms().catch(() => []),
+        user?.id ? getUserRooms(user.id).catch(() => []) : Promise.resolve([]),
+      ]);
+      setRooms(allRooms);
+      setMyRooms(userRooms);
+    } catch {
+      // Silently fail — show empty state
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const myRoomRoles = new Map(myRooms.map((r) => [r.room_id, r.role]));
+  const hasProfile = user?.phase && user.phase !== 'none';
+
+  // Empty state
+  if (!hasProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerLabel}>COMMUNITY</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>IDENTITY REQUIRED</Text>
+          <Text style={styles.emptyBody}>
+            Complete the personality assessment to unlock rooms and debates.
+          </Text>
+          <PressableScale
+            style={styles.emptyCta}
+            onPress={() => router.push('/onboarding/phase1')}
+            scale={0.97}
+          >
+            <Text style={styles.emptyCtaText}>START QUIZ</Text>
+          </PressableScale>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <header style={styles.header}>
-        <View style={styles.headerTitle}>
-          <Text style={styles.headerLabel}>COMMUNITY HUB</Text>
-          <Text style={styles.headerVersion}>VERSION 2.0</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerLabel}>COMMUNITY</Text>
+          <Text style={styles.headerVersion}>
+            {archetype?.shortLabel || '—'}
+          </Text>
         </View>
-        <View style={styles.refBadge}>
-          <View style={styles.pulse} />
-          <Text style={styles.refText}>REF:24B</Text>
+        <View style={styles.statusBadge}>
+          <View style={styles.statusDot} />
+          <Text style={styles.statusText}>ONLINE</Text>
         </View>
-      </header>
+      </View>
 
-      <ScrollView 
-        style={styles.main} 
+      <ScrollView
+        style={styles.main}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.t3} />
+        }
       >
-        {/* Archetype Hero */}
-        <View style={styles.heroSection}>
-          <View style={styles.accentLineV} />
-          <Animated.View entering={FadeIn.duration(600)} style={styles.tagWrapper}>
-            <View style={styles.archetypeTag}>
-              <Text style={styles.archetypeTagText}>SOCIAL ARCHETYPE</Text>
-            </View>
-          </Animated.View>
-
-          <Animated.Text entering={FadeInDown.delay(100)} style={styles.heroTitle}>
-            THE{'\n'}
-            <Text style={{ color: Colors.accent }}>{archetype?.nameEn.split(' ')[0].toUpperCase() || 'CATALYST'}.</Text>
-          </Animated.Text>
-
-          <Animated.View entering={FadeInDown.delay(200)} style={styles.heroDesc}>
-            <View style={styles.heroDescBorder} />
-            <Text style={styles.heroDescText}>
-              You are the <Text style={{ backgroundColor: '#FFE5E5' }}>spark</Text> within the network that drives evolution.
-            </Text>
-            <Text style={styles.heroDescSub}>
-              While others maintain stability, your brief but high-impact interactions bridge gaps between isolated groups.
-            </Text>
-          </Animated.View>
-        </View>
-
-        {/* Stats Grid */}
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.statsGrid}>
-          <StatBox label="INFLUENCE" value="HIGH" />
-          <StatBox label="VELOCITY" value="FAST" />
-          <StatBox label="PEERS" value="4" color={Colors.accent} />
-        </Animated.View>
-
-        {/* Sticky-like section header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>RESONANT PEERS</Text>
-          <View style={styles.dotStack}>
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
-            <View style={styles.headerDot} />
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={Colors.t3} />
+            <Text style={styles.loadingText}>Loading rooms...</Text>
           </View>
-        </View>
+        ) : (
+          <>
+            {/* ── YOUR ROOMS ── */}
+            {myRooms.length > 0 && (
+              <Animated.View entering={FadeInDown.duration(400)}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>YOUR ROOMS</Text>
+                  <Text style={styles.sectionCount}>{myRooms.length}</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.roomScroll}
+                >
+                  {myRooms.map((room) => (
+                    <RoomCard
+                      key={room.room_id}
+                      name={room.name}
+                      nameZh={room.name_zh}
+                      color={room.color}
+                      roomType={room.room_type as any}
+                      memberCount={
+                        rooms.find((r) => r.id === room.room_id)?.member_count ?? 0
+                      }
+                      role={room.role}
+                      onPress={() => router.push(`/room/${room.room_id}`)}
+                    />
+                  ))}
+                </ScrollView>
+              </Animated.View>
+            )}
 
-        {/* Peers List */}
-        <View style={styles.peersList}>
-          {PEERS.map((peer, idx) => (
-            <TouchableOpacity 
-              key={peer.id} 
-              style={styles.peerItem}
-              onPress={() => router.push(`/user/${peer.id}`)}
-            >
-              <View style={styles.peerAvatarFrame}>
-                <Image source={{ uri: peer.image }} style={styles.peerAvatar} />
+            {/* ── ARENA ── */}
+            <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>ARENA</Text>
+                <Text style={styles.sectionLabel}>COMING SOON</Text>
               </View>
-              <View style={styles.peerInfo}>
-                <View style={styles.peerInfoTop}>
-                  <Text style={styles.peerName}>{peer.name}</Text>
-                  <Text style={styles.peerMatch}>{peer.match}%</Text>
+              <View style={styles.arenaCard}>
+                <View style={styles.arenaColors}>
+                  <View style={[styles.arenaHalf, { backgroundColor: '#30B0C720' }]} />
+                  <View style={[styles.arenaHalf, { backgroundColor: '#AF52DE20' }]} />
                 </View>
-                <View style={styles.peerInfoBottom}>
-                  <Text style={styles.peerRole}>{peer.role.toUpperCase()}</Text>
-                  <Text style={styles.viewLink}>VIEW →</Text>
+                <View style={styles.arenaBody}>
+                  <Text style={styles.arenaTopic}>
+                    "Structure kills creativity"
+                  </Text>
+                  <View style={styles.arenaMeta}>
+                    <Text style={styles.arenaMetaText}>HIGH C vs HIGH O</Text>
+                    <Text style={styles.arenaMetaText}>5 DAYS</Text>
+                  </View>
                 </View>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.listFooter} />
+            </Animated.View>
+
+            {/* ── ALL ROOMS ── */}
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>ALL ROOMS</Text>
+                <Text style={styles.sectionCount}>{rooms.length}</Text>
+              </View>
+              <View style={styles.roomGrid}>
+                {rooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    name={room.name}
+                    nameZh={room.name_zh}
+                    color={room.color}
+                    roomType={room.room_type}
+                    memberCount={room.member_count}
+                    role={myRoomRoles.get(room.id)}
+                    onPress={() => router.push(`/room/${room.id}`)}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
-
-      {/* Footer Nav */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerBtn}>
-          <Text style={styles.footerBtnText}>VIEW MAP</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.footerBtn, { backgroundColor: Colors.accent, borderLeftWidth: 0 }]}
-          onPress={() => router.push('/threads/new')}
-        >
-          <Text style={[styles.footerBtnText, { color: Colors.white }]}>START THREAD</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
-  );
-}
-
-function StatBox({ label, value, color = Colors.black }: { label: string, value: string, color?: string }) {
-  return (
-    <View style={styles.statBox}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
+
   header: {
-    height: 64,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: S[6],
-    borderBottomWidth: 2,
+    paddingVertical: S[4],
+    borderBottomWidth: 1,
     borderColor: Colors.black,
-    backgroundColor: Colors.white,
-    zIndex: 20,
   },
-  headerTitle: { gap: 2 },
-  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  headerVersion: { fontSize: 10, fontFamily: Fonts?.mono, color: Colors.t3 },
-  refBadge: {
-    backgroundColor: Colors.black,
+  headerLabel: {
+    fontSize: T.xs,
+    fontWeight: T.bold,
+    letterSpacing: 3,
+    color: Colors.black,
+  },
+  headerVersion: {
+    fontSize: T.xs,
+    fontWeight: T.light,
+    color: Colors.t3,
+    marginTop: 2,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.black,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    gap: 6,
   },
-  pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
-  refText: { color: Colors.white, fontSize: 10, fontWeight: 'bold', fontFamily: Fonts?.mono },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34C759',
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.white,
+    letterSpacing: 1,
+  },
 
   main: { flex: 1 },
-  content: { paddingBottom: 100 },
+  content: { paddingBottom: 40 },
 
-  heroSection: {
-    paddingHorizontal: S[6],
-    paddingVertical: S[8],
-    borderBottomWidth: 2,
-    borderColor: Colors.black,
-    position: 'relative',
-  },
-  accentLineV: {
-    position: 'absolute',
-    left: 0, top: 0, bottom: 0,
-    width: 4,
-    backgroundColor: Colors.accent,
-  },
-  tagWrapper: { marginBottom: S[6] },
-  archetypeTag: {
-    borderWidth: 1,
-    borderColor: Colors.black,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    alignSelf: 'flex-start',
-  },
-  archetypeTagText: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  heroTitle: {
-    fontSize: W * 0.13,
-    fontWeight: '900',
-    lineHeight: W * 0.11,
-    letterSpacing: -2,
-    marginBottom: S[6],
-  },
-  heroDesc: {
-    paddingLeft: S[2],
-    borderLeftWidth: 1,
-    borderColor: Colors.line,
-    gap: S[4],
-  },
-  heroDescText: { fontSize: 20, fontWeight: '500', lineHeight: 24 },
-  heroDescSub: { fontSize: 14, color: Colors.t2, lineHeight: 20 },
-
-  statsGrid: {
-    flexDirection: 'row',
-    borderBottomWidth: 2,
-    borderColor: Colors.black,
-    backgroundColor: '#F9FAFB',
-  },
-  statBox: {
-    flex: 1,
-    padding: S[4],
-    alignItems: 'center',
-    borderRightWidth: 2,
-    borderColor: Colors.black,
-  },
-  statLabel: { fontSize: 10, fontWeight: 'bold', color: Colors.t3, letterSpacing: 1, marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: 'bold', fontFamily: Fonts?.mono },
-
+  // Section headers
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'baseline',
     paddingHorizontal: S[6],
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderColor: Colors.black,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
-  dotStack: { flexDirection: 'row', gap: 4 },
-  headerDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.black },
-
-  peersList: { backgroundColor: Colors.white },
-  peerItem: {
-    flexDirection: 'row',
-    padding: S[4],
-    gap: S[4],
+    paddingVertical: S[4],
     borderBottomWidth: 1,
     borderColor: Colors.line,
   },
-  peerAvatarFrame: {
-    width: 56, height: 56,
-    borderWidth: 1, borderColor: Colors.black,
+  sectionTitle: {
+    fontSize: T.xs,
+    fontWeight: T.bold,
+    letterSpacing: 2.5,
+    color: Colors.black,
+  },
+  sectionCount: {
+    fontSize: T.xs,
+    fontWeight: T.bold,
+    color: Colors.t3,
+    fontFamily: Fonts?.mono,
+  },
+  sectionLabel: {
+    fontSize: 8,
+    fontWeight: T.bold,
+    color: Colors.t3,
+    letterSpacing: 1.5,
+  },
+
+  // Room scrolls
+  roomScroll: {
+    paddingHorizontal: S[6],
+    paddingVertical: S[6],
+    gap: S[4],
+  },
+  roomGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: S[6],
+    gap: S[4],
+  },
+
+  // Arena card
+  arenaCard: {
+    margin: S[6],
+    borderWidth: 1,
+    borderColor: Colors.black,
     overflow: 'hidden',
   },
-  peerAvatar: { width: '100%', height: '100%', grayscale: 1 } as any,
-  peerInfo: { flex: 1, justifyContent: 'center' },
-  peerInfoTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  peerName: { fontSize: 20, fontWeight: 'bold', letterSpacing: -0.5 },
-  peerMatch: { fontSize: 14, fontWeight: 'bold', color: Colors.accent, fontFamily: Fonts?.mono },
-  peerInfoBottom: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
-  peerRole: { fontSize: 12, color: Colors.t2, letterSpacing: 1 },
-  viewLink: { fontSize: 10, fontWeight: '900', color: Colors.black },
-
-  listFooter: { height: 40, backgroundColor: '#F9FAFB' },
-
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
+  arenaColors: {
     flexDirection: 'row',
-    borderTopWidth: 2,
-    borderColor: Colors.black,
+    height: 4,
   },
-  footerBtn: {
+  arenaHalf: {
     flex: 1,
-    height: 64,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRightWidth: 2,
-    borderColor: Colors.black,
   },
-  footerBtnText: { fontSize: 14, fontWeight: '900', letterSpacing: 2 },
+  arenaBody: {
+    padding: S[6],
+    gap: S[4],
+  },
+  arenaTopic: {
+    fontSize: T.lg,
+    fontWeight: T.semibold,
+    color: Colors.black,
+    fontStyle: 'italic',
+    lineHeight: 26,
+  },
+  arenaMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  arenaMetaText: {
+    fontSize: 9,
+    fontWeight: T.bold,
+    color: Colors.t3,
+    letterSpacing: 1.5,
+  },
+
+  // Loading
+  loadingWrap: {
+    paddingTop: S[24],
+    alignItems: 'center',
+    gap: S[4],
+  },
+  loadingText: {
+    fontSize: T.xs,
+    color: Colors.t3,
+    letterSpacing: 1,
+  },
+
+  // Empty state
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: S[12],
+    gap: S[6],
+  },
+  emptyTitle: {
+    fontSize: T.lg,
+    fontWeight: T.bold,
+    letterSpacing: 2,
+    color: Colors.black,
+  },
+  emptyBody: {
+    fontSize: T.base,
+    fontWeight: T.light,
+    color: Colors.t2,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emptyCta: {
+    backgroundColor: Colors.black,
+    paddingHorizontal: S[12],
+    paddingVertical: S[6],
+    borderRadius: R.sm,
+  },
+  emptyCtaText: {
+    color: Colors.white,
+    fontSize: T.sm,
+    fontWeight: T.bold,
+    letterSpacing: 2,
+  },
 });
