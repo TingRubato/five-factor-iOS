@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Text, ForeignKey, DateTime, func
+from sqlalchemy import Column, Index, Integer, String, Float, Boolean, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -81,6 +81,9 @@ class Room(Base):
 
 class RoomMembership(Base):
     __tablename__ = 'room_memberships'
+    __table_args__ = (
+        Index('ix_room_memberships_user_room', 'user_id', 'room_id', unique=True),
+    )
 
     id = Column(String(36), primary_key=True, index=True)
     user_id = Column(String(36), ForeignKey('users.id'), index=True)
@@ -139,6 +142,9 @@ class Arena(Base):
 
 class ArenaPost(Base):
     __tablename__ = 'arena_posts'
+    __table_args__ = (
+        Index('ix_arena_posts_arena_side', 'arena_id', 'side'),
+    )
 
     id = Column(String(36), primary_key=True, index=True)
     arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)

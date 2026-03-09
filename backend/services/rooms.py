@@ -51,6 +51,19 @@ def get_room_member_count(db: Session, room_id: str) -> int:
     ).count()
 
 
+def get_all_room_member_counts(db: Session) -> dict[str, int]:
+    """Get member counts for all rooms in a single query."""
+    rows = (
+        db.query(
+            models.RoomMembership.room_id,
+            func.count(models.RoomMembership.id),
+        )
+        .group_by(models.RoomMembership.room_id)
+        .all()
+    )
+    return {room_id: count for room_id, count in rows}
+
+
 def get_room_posts(
     db: Session, room_id: str, limit: int = 20, offset: int = 0
 ) -> list[models.Post]:
@@ -134,26 +147,25 @@ def join_room(
 
 
 def get_user_rooms(db: Session, user_id: str) -> list[dict]:
-    """Get all rooms a user has joined, with role info."""
-    memberships = (
-        db.query(models.RoomMembership)
+    """Get all rooms a user has joined, with role info. Single query with join."""
+    rows = (
+        db.query(models.RoomMembership, models.Room)
+        .join(models.Room, models.Room.id == models.RoomMembership.room_id)
         .filter(models.RoomMembership.user_id == user_id)
         .all()
     )
-    result = []
-    for m in memberships:
-        room = db.query(models.Room).filter(models.Room.id == m.room_id).first()
-        if room:
-            result.append({
-                "room_id": room.id,
-                "name": room.name,
-                "name_zh": room.name_zh,
-                "dimension": room.dimension,
-                "room_type": room.room_type,
-                "color": room.color,
-                "role": m.role,
-            })
-    return result
+    return [
+        {
+            "room_id": room.id,
+            "name": room.name,
+            "name_zh": room.name_zh,
+            "dimension": room.dimension,
+            "room_type": room.room_type,
+            "color": room.color,
+            "role": m.role,
+        }
+        for m, room in rows
+    ]
 
 
 def auto_assign_rooms(db: Session, user_id: str, scores: dict) -> None:

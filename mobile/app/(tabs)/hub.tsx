@@ -1,7 +1,7 @@
 /**
  * Hub — Community center with room browser and arena section.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -72,7 +72,11 @@ export default function HubScreen() {
   }, [user?.id]);
 
   useEffect(() => {
-    fetchData();
+    let mounted = true;
+    fetchData().then(() => {
+      if (!mounted) return;
+    });
+    return () => { mounted = false; };
   }, [fetchData]);
 
   const onRefresh = () => {
@@ -80,7 +84,7 @@ export default function HubScreen() {
     fetchData();
   };
 
-  const myRoomRoles = new Map(myRooms.map((r) => [r.room_id, r.role]));
+  const myRoomRoles = useMemo(() => new Map(myRooms.map((r) => [r.room_id, r.role])), [myRooms]);
   const hasProfile = user?.phase && user.phase !== 'none';
 
   // Empty state

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,10 @@ import type { Arena } from '../../lib/arenas';
 import PressableScale from '../../components/ui/PressableScale';
 
 type FeedMode = 'default' | 'similar' | 'opposing';
+
+const DIM_COLORS: Record<string, string> = {
+  O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
+};
 
 const MODES: { key: FeedMode; label: string; desc: string }[] = [
   { key: 'default', label: 'Discover', desc: 'Quality + personality blend' },
@@ -100,19 +104,18 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [activeArena, setActiveArena] = useState<Arena | null>(null);
 
-  const DIM_COLORS: Record<string, string> = {
-    O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
-  };
-
   useEffect(() => {
+    let mounted = true;
     getArenas('active')
       .then((arenas) => {
-        if (arenas.length > 0) setActiveArena(arenas[0]);
+        if (mounted && arenas.length > 0) setActiveArena(arenas[0]);
       })
       .catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     async function loadFeed() {
       if (!user?.id) {
         setLoading(false);
@@ -121,14 +124,15 @@ export default function FeedScreen() {
       setLoading(true);
       try {
         const res = await getFeed(user.id, mode);
-        setFeed(res.items);
+        if (mounted) setFeed(res.items);
       } catch (e) {
         console.error("Error loading feed:", e);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     loadFeed();
+    return () => { mounted = false; };
   }, [user?.id, mode]);
 
   const renderEmptyState = () => {
@@ -203,6 +207,9 @@ export default function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews
         ListHeaderComponent={
           activeArena ? (
             <PressableScale

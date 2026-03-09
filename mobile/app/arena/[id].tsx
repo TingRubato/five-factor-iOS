@@ -192,6 +192,9 @@ export default function ArenaScreen() {
           style={[styles.threadCol, { borderRightWidth: 1, borderColor: Colors.line }]}
           contentContainerStyle={styles.threadContent}
           ListEmptyComponent={<Text style={styles.emptyText}>No posts yet</Text>}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews
         />
         <FlatList
           data={side2Posts}
@@ -200,6 +203,9 @@ export default function ArenaScreen() {
           style={styles.threadCol}
           contentContainerStyle={styles.threadContent}
           ListEmptyComponent={<Text style={styles.emptyText}>No posts yet</Text>}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews
         />
       </View>
 

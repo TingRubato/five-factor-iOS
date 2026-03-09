@@ -14,12 +14,11 @@ router = APIRouter(tags=["rooms"])
 
 @router.get("/rooms")
 def list_rooms(db: Session = Depends(get_db)):
-    """List all rooms with member counts."""
+    """List all rooms with member counts (2 queries total, not N+1)."""
     all_rooms = rooms_service.get_all_rooms(db)
-    result = []
-    for room in all_rooms:
-        count = rooms_service.get_room_member_count(db, room.id)
-        result.append({
+    counts = rooms_service.get_all_room_member_counts(db)
+    return [
+        {
             "id": room.id,
             "dimension": room.dimension,
             "name": room.name,
@@ -27,9 +26,10 @@ def list_rooms(db: Session = Depends(get_db)):
             "description": room.description,
             "room_type": room.room_type,
             "color": room.color,
-            "member_count": count,
-        })
-    return result
+            "member_count": counts.get(room.id, 0),
+        }
+        for room in all_rooms
+    ]
 
 
 @router.get("/rooms/{room_id}")

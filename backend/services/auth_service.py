@@ -77,8 +77,17 @@ _otp_store: dict[str, tuple[str, datetime]] = {}
 OTP_TTL_MINUTES = 5
 
 
+def _cleanup_expired_otps() -> None:
+    """Remove expired OTP entries to prevent memory growth."""
+    now = datetime.utcnow()
+    expired = [phone for phone, (_, exp) in _otp_store.items() if now > exp]
+    for phone in expired:
+        del _otp_store[phone]
+
+
 def generate_otp(phone: str) -> str:
     """Generate and store a 6-digit OTP for the given phone number."""
+    _cleanup_expired_otps()
     code = "".join(random.choices(string.digits, k=6))
     _otp_store[phone] = (code, datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES))
     # In production: send via SMS provider (Twilio, etc.)

@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case
 
 from backend import models
 from backend.database import get_db
@@ -23,23 +24,30 @@ class ArenaVoteRequest(BaseModel):
     side: int  # 1 or 2
 
 
+def _get_arena_side_counts(db: Session, arena_ids: list[str]) -> dict[str, tuple[int, int]]:
+    """Get side1/side2 post counts for multiple arenas in a single query."""
+    if not arena_ids:
+        return {}
+    rows = (
+        db.query(
+            models.ArenaPost.arena_id,
+            func.sum(case((models.ArenaPost.side == 1, 1), else_=0)).label("s1"),
+            func.sum(case((models.ArenaPost.side == 2, 1), else_=0)).label("s2"),
+        )
+        .filter(models.ArenaPost.arena_id.in_(arena_ids))
+        .group_by(models.ArenaPost.arena_id)
+        .all()
+    )
+    return {arena_id: (int(s1), int(s2)) for arena_id, s1, s2 in rows}
+
+
 @router.get("")
 def list_arenas(status_filter: Optional[str] = None, db: Session = Depends(get_db)):
-    """List arenas, optionally filtered by status."""
+    """List arenas, optionally filtered by status (2 queries total)."""
     arenas = arena_service.get_arenas(db, status=status_filter)
-    result = []
-    for a in arenas:
-        side1_count = (
-            db.query(models.ArenaPost)
-            .filter(models.ArenaPost.arena_id == a.id, models.ArenaPost.side == 1)
-            .count()
-        )
-        side2_count = (
-            db.query(models.ArenaPost)
-            .filter(models.ArenaPost.arena_id == a.id, models.ArenaPost.side == 2)
-            .count()
-        )
-        result.append({
+    counts = _get_arena_side_counts(db, [a.id for a in arenas])
+    return [
+        {
             "id": a.id,
             "topic": a.topic,
             "topic_zh": a.topic_zh,
@@ -51,30 +59,23 @@ def list_arenas(status_filter: Optional[str] = None, db: Session = Depends(get_d
             "starts_at": a.starts_at.isoformat() if a.starts_at else None,
             "voting_at": a.voting_at.isoformat() if a.voting_at else None,
             "ends_at": a.ends_at.isoformat() if a.ends_at else None,
-            "side1_count": side1_count,
-            "side2_count": side2_count,
-        })
-    return result
+            "side1_count": counts.get(a.id, (0, 0))[0],
+            "side2_count": counts.get(a.id, (0, 0))[1],
+        }
+        for a in arenas
+    ]
 
 
 @router.get("/{arena_id}")
 def get_arena(arena_id: str, db: Session = Depends(get_db)):
-    """Get arena detail with vote counts."""
+    """Get arena detail with vote and post counts."""
     arena = arena_service.get_arena(db, arena_id)
     if not arena:
         raise HTTPException(status_code=404, detail="Arena not found")
 
     results = arena_service.get_arena_results(db, arena_id)
-    side1_count = (
-        db.query(models.ArenaPost)
-        .filter(models.ArenaPost.arena_id == arena_id, models.ArenaPost.side == 1)
-        .count()
-    )
-    side2_count = (
-        db.query(models.ArenaPost)
-        .filter(models.ArenaPost.arena_id == arena_id, models.ArenaPost.side == 2)
-        .count()
-    )
+    counts = _get_arena_side_counts(db, [arena_id])
+    s1, s2 = counts.get(arena_id, (0, 0))
 
     return {
         "id": arena.id,
@@ -88,8 +89,8 @@ def get_arena(arena_id: str, db: Session = Depends(get_db)):
         "starts_at": arena.starts_at.isoformat() if arena.starts_at else None,
         "voting_at": arena.voting_at.isoformat() if arena.voting_at else None,
         "ends_at": arena.ends_at.isoformat() if arena.ends_at else None,
-        "side1_count": side1_count,
-        "side2_count": side2_count,
+        "side1_count": s1,
+        "side2_count": s2,
         **results,
     }
 
