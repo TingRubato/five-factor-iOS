@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
 
 
 # ── Request Models ────────────────────────────────────────────────────────────
@@ -24,9 +24,50 @@ class SubmitTestRequest(BaseModel):
     )
     version: str = Field("ipip-15-v1", description="Quiz version identifier")
 
+    @field_validator("answers")
+    @classmethod
+    def validate_answers(cls, v: Dict[str, int]) -> Dict[str, int]:
+        for qid, score in v.items():
+            if not (1 <= score <= 5):
+                raise ValueError(f"Answer for question {qid} must be between 1 and 5")
+            if not qid.isdigit():
+                raise ValueError(f"Question ID {qid} must be a numeric string")
+        return v
+
 
 class UpdateProfileRequest(BaseModel):
     is_public: Optional[bool] = None
+
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class PhoneOtpRequest(BaseModel):
+    phone: str = Field(..., min_length=8, max_length=20)
+
+
+class VerifyOtpRequest(BaseModel):
+    phone: str = Field(..., min_length=8, max_length=20)
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class MigrateGuestRequest(BaseModel):
+    guest_user_id: str
+    auth_provider: str  # "apple" | "google" | "phone"
+    auth_token: Optional[str] = None  # identity/id token for social
+    phone: Optional[str] = None
+    code: Optional[str] = None
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: "UserResponse"
+    is_new: bool = False
 
 
 class CreatePostRequest(BaseModel):
@@ -43,7 +84,9 @@ class UserResponse(BaseModel):
 
     id: str
     username: str
-    email: str
+    email: Optional[str] = None
+    is_guest: bool = True
+    auth_provider: Optional[str] = None
     created_at: datetime
 
 
@@ -56,17 +99,24 @@ class OceanScores(BaseModel):
 
 
 class ProfileResponse(BaseModel):
-    """Returned by GET /profile/{user_id} and POST /test/submit/{user_id}."""
-
+    """
+    Standard profile response. 
+    Fields like 'scores' and 'z_scores' are optional to allow for privacy masking.
+    """
     user_id: str
-    quiz_version: str
-    scoring_version: str
-    archetype_version: str
-    scores: OceanScores
-    z_scores: OceanScores
-    primary_archetype: str
+    username: Optional[str] = None
+    quiz_version: Optional[str] = None
+    primary_archetype: Optional[str] = None
     secondary_archetype: Optional[str] = None
     is_public: bool
+    
+    # Sensitive psychometric data
+    scores: Optional[OceanScores] = None
+    z_scores: Optional[OceanScores] = None
+    
+    # Meta
+    scoring_version: Optional[str] = None
+    archetype_version: Optional[str] = None
     compatibility: Optional[int] = None  # only present when viewer_id is supplied
 
 

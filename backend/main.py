@@ -12,22 +12,35 @@ import math
 
 from backend import models, database
 from backend.services import scoring, feed, psychometrics
+from backend.services import rooms as rooms_service
 from backend import schemas
 from backend.auth import create_access_token, get_current_user, verify_password, get_password_hash
+from backend.routes.auth import router as auth_router
+from backend.routes.rooms import router as rooms_router
 
 from backend.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Models are now managed by Alembic migrations
+    # Load question bank on startup
+    try:
+        load_question_bank()
+        print(f"Question bank loaded successfully with {len(_QUESTION_BANK)} versions.")
+    except Exception as e:
+        print(f"CRITICAL ERROR: Failed to load question_bank.json: {e}")
+        # Fail fast if quiz data is missing or corrupted
+        raise SystemExit(1)
     yield
 
 
 app = FastAPI(title=settings.APP_NAME, version="1.0.0", lifespan=lifespan)
 
+app.include_router(auth_router, prefix="/api")
+app.include_router(rooms_router, prefix="/api")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.get_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,10 +73,14 @@ _QUESTION_BANK = {}
 def load_question_bank():
     global _QUESTION_BANK
     path = os.path.join(os.path.dirname(__file__), "question_bank.json")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Question bank file not found at {path}")
     with open(path, "r", encoding="utf-8") as f:
-        _QUESTION_BANK = json.load(f)
-
-load_question_bank()
+        data = json.load(f)
+        # Minimal schema validation: ensure it's a dict
+        if not isinstance(data, dict):
+            raise ValueError("question_bank.json must be a JSON object (dictionary)")
+        _QUESTION_BANK = data
 
 
 @app.get("/quiz/version/{version}")
@@ -103,9 +120,9 @@ def verify_user_id(user_id: str, current_user: models.User = Depends(get_current
 def create_user(payload: schemas.CreateUserRequest, db: Session = Depends(database.get_db)):
     # Check for existing user
     if db.query(models.User).filter(models.User.username == payload.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already registered")
     if db.query(models.User).filter(models.User.email == payload.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     db_user = models.User(
         id=str(uuid.uuid4()),
@@ -173,6 +190,9 @@ def submit_test(
     db.commit()
     db.refresh(profile)
 
+    # Auto-assign rooms based on scores
+    rooms_service.auto_assign_rooms(db, user_id, ocean_scores)
+
     return schemas.ProfileResponse(
         user_id=profile.user_id,
         quiz_version=profile.quiz_version,
@@ -213,32 +233,52 @@ def get_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
+    user_data = db.query(models.User).filter(models.User.id == user_id).first()
+    
+    # Ownership and Privacy Check
+    is_owner = _auth.id == user_id
+    should_mask = not is_owner and not profile.is_public
+
+    # Construct the base response
     result = schemas.ProfileResponse(
         user_id=profile.user_id,
-        quiz_version=profile.quiz_version,
-        scoring_version=profile.scoring_version,
-        archetype_version=profile.archetype_version,
-        scores=schemas.OceanScores(
-            O=profile.o_score,
-            C=profile.c_score,
-            E=profile.e_score,
-            A=profile.a_score,
-            N=profile.n_score,
-        ),
-        z_scores=schemas.OceanScores(
-            O=profile.z_o,
-            C=profile.z_c,
-            E=profile.z_e,
-            A=profile.z_a,
-            N=profile.z_n,
-        ),
-        primary_archetype=profile.primary_archetype,
-        secondary_archetype=profile.secondary_archetype,
+        username=user_data.username if user_data else None,
         is_public=profile.is_public,
     )
 
-    # If a viewer is specified, calculate compatibility
-    if viewer_id and viewer_id != user_id:
+    # Populate sensitive data only if allowed
+    if not should_mask:
+        result.quiz_version = profile.quiz_version
+        result.scoring_version = profile.scoring_version
+        result.archetype_version = profile.archetype_version
+        result.primary_archetype = profile.primary_archetype
+        result.secondary_archetype = profile.secondary_archetype
+        
+        if profile.o_score is not None:
+            result.scores = schemas.OceanScores(
+                O=profile.o_score,
+                C=profile.c_score,
+                E=profile.e_score,
+                A=profile.a_score,
+                N=profile.n_score,
+            )
+        
+        if profile.z_o is not None:
+            result.z_scores = schemas.OceanScores(
+                O=profile.z_o,
+                C=profile.z_c,
+                E=profile.z_e,
+                A=profile.z_a,
+                N=profile.z_n,
+            )
+    else:
+        # If masked, maybe we still show archetype if public? 
+        # But should_mask means (not owner AND not public).
+        # So we return minimal info.
+        pass
+
+    # If a viewer is specified and it's public (or owner), calculate compatibility
+    if viewer_id and viewer_id != user_id and not should_mask:
         if viewer_id != _auth.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized as viewer")
         viewer_profile = db.query(models.PersonalityProfile).filter(
@@ -306,6 +346,54 @@ def update_profile(
         secondary_archetype=profile.secondary_archetype,
         is_public=profile.is_public,
     )
+
+
+@app.delete("/profile/{user_id}/scores", status_code=204)
+def clear_profile_scores(
+    user_id: str,
+    db: Session = Depends(database.get_db),
+    _auth = Depends(verify_user_id),
+):
+    profile = db.query(models.PersonalityProfile).filter(
+        models.PersonalityProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    profile.o_score = None
+    profile.c_score = None
+    profile.e_score = None
+    profile.a_score = None
+    profile.n_score = None
+    profile.z_o = None
+    profile.z_c = None
+    profile.z_e = None
+    profile.z_a = None
+    profile.z_n = None
+    profile.primary_archetype = "none"
+    profile.secondary_archetype = None
+    profile.quiz_version = "none"
+
+    db.commit()
+    return
+
+
+@app.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: str,
+    db: Session = Depends(database.get_db),
+    _auth = Depends(verify_user_id),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Manual cascade cleanup
+    db.query(models.PersonalityProfile).filter(models.PersonalityProfile.user_id == user_id).delete()
+    db.query(models.Post).filter(models.Post.author_id == user_id).delete()
+    db.delete(user)
+    db.commit()
+    return
 
 
 # ── Posts ──────────────────────────────────────────────────────

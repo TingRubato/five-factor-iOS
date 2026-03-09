@@ -9,8 +9,12 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
-    email = Column(String(100), unique=True, index=True)
-    password_hash = Column(String(255), nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=True)
+    password_hash = Column(String(255), nullable=True)
+    is_guest = Column(Boolean, default=True)
+    auth_provider = Column(String(20), nullable=True)  # "apple" | "google" | "phone"
+    auth_provider_id = Column(String(255), nullable=True, unique=True, index=True)
+    phone_number = Column(String(20), nullable=True, unique=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -59,12 +63,42 @@ class Topic(Base):
     posts = relationship("Post", back_populates="topic")
 
 
+class Room(Base):
+    __tablename__ = 'rooms'
+
+    id = Column(String(36), primary_key=True, index=True)
+    dimension = Column(String(5), nullable=True)  # O, C, E, A, N, or null
+    name = Column(String(100), nullable=False)
+    name_zh = Column(String(100), nullable=False)
+    description = Column(String(500), nullable=True)
+    room_type = Column(String(20), nullable=False)  # "dimension" | "commons" | "shadow"
+    color = Column(String(10), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    memberships = relationship("RoomMembership", back_populates="room")
+    posts = relationship("Post", back_populates="room")
+
+
+class RoomMembership(Base):
+    __tablename__ = 'room_memberships'
+
+    id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(String(36), ForeignKey('users.id'), index=True)
+    room_id = Column(String(36), ForeignKey('rooms.id'), index=True)
+    role = Column(String(20), nullable=False)  # "home" | "shadow" | "joined"
+    joined_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")
+    room = relationship("Room", back_populates="memberships")
+
+
 class Post(Base):
     __tablename__ = 'posts'
 
     id = Column(String(36), primary_key=True, index=True)
     author_id = Column(String(36), ForeignKey('users.id'), index=True)
-    topic_id = Column(String(36), ForeignKey('topics.id'), index=True)
+    topic_id = Column(String(36), ForeignKey('topics.id'), index=True, nullable=True)
+    room_id = Column(String(36), ForeignKey('rooms.id'), index=True, nullable=True)
     title = Column(String(200), nullable=False)
     body = Column(String(5000), nullable=False)
 
@@ -80,3 +114,4 @@ class Post(Base):
 
     author = relationship("User", back_populates="posts")
     topic = relationship("Topic", back_populates="posts")
+    room = relationship("Room", back_populates="posts")
