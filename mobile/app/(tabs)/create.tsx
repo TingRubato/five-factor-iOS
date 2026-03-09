@@ -6,16 +6,17 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
+import { createPost } from '../../lib/api';
 
 const TOPICS = [
   'MUSIC · ENGINEERING',
@@ -45,8 +46,11 @@ export default function CreateScreen() {
   const handlePost = async () => {
     if (!title.trim() || !body.trim()) return;
     setPosting(true);
-    // TODO: call api.createPost()
-    await new Promise((r) => setTimeout(r, 800));
+    try {
+      await createPost(user!.id, title.trim(), body.trim(), topic ?? undefined);
+    } catch (e) {
+      console.warn('createPost failed:', e);
+    }
     setPosting(false);
     router.replace('/(tabs)/feed');
   };
