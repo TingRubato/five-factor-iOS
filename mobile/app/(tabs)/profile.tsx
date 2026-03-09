@@ -151,14 +151,23 @@ export default function ProfileScreen() {
               <Text style={styles.archetypeDesc}>{archetype.description}</Text>
             </View>
 
-            {/* Share button */}
-            <PressableScale
-              style={styles.shareBtn}
-              onPress={() => shareCard(shareRef)}
-              scale={0.98}
-            >
-              <Text style={styles.shareBtnText}>SHARE YOUR ARCHETYPE</Text>
-            </PressableScale>
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
+              <PressableScale
+                style={[styles.actionBtn, styles.actionBtnBorder]}
+                onPress={() => router.push('/onboarding/result')}
+                scale={0.98}
+              >
+                <Text style={styles.actionBtnText}>VIEW REPORT</Text>
+              </PressableScale>
+              <PressableScale
+                style={styles.actionBtn}
+                onPress={() => shareCard(shareRef)}
+                scale={0.98}
+              >
+                <Text style={styles.actionBtnText}>SHARE</Text>
+              </PressableScale>
+            </View>
 
             {/* Off-screen share card */}
             <View style={styles.offScreen}>
@@ -415,16 +424,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: S[4],
   },
 
-  // Share button
-  shareBtn: {
+  // Action buttons
+  actionRow: {
+    flexDirection: 'row',
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: Colors.black,
+  },
+  actionBtn: {
+    flex: 1,
     paddingVertical: S[6],
     alignItems: 'center',
     backgroundColor: Colors.white,
   },
-  shareBtnText: {
+  actionBtnBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.black,
+  },
+  actionBtnText: {
     fontSize: 9,
     fontWeight: T.bold,
     letterSpacing: 2,
