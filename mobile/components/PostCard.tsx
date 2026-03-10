@@ -20,9 +20,10 @@ interface PostCardProps {
   archetype?: string;
   upvotes?: number;
   isSerendipity?: boolean;
+  onPress?: () => void;
 }
 
-export default function PostCard({
+function PostCardInner({
   id,
   author,
   authorId,
@@ -31,6 +32,7 @@ export default function PostCard({
   archetype,
   upvotes = 0,
   isSerendipity,
+  onPress,
 }: PostCardProps) {
   const router = useRouter();
   const scale = useSharedValue(1);
@@ -48,9 +50,7 @@ export default function PostCard({
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 300 });
       }}
-      onPress={() => {
-        // Navigate to post detail or author profile
-      }}
+      onPress={onPress ?? (() => router.push(`/user/${authorId}`))}
     >
       <Animated.View style={[styles.card, cardStyle]}>
         <View style={styles.header}>
@@ -87,6 +87,9 @@ export default function PostCard({
     </Pressable>
   );
 }
+
+const PostCard = React.memo(PostCardInner);
+export default PostCard;
 
 const styles = StyleSheet.create({
   card: {

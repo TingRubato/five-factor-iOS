@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,7 @@ function ArchetypeChip({ archetypeId }: { archetypeId: string }) {
   );
 }
 
-function PostCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
+const FeedPostCard = React.memo(function FeedPostCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () =>
@@ -91,7 +91,14 @@ function PostCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
       </Animated.View>
     </TouchableOpacity>
   );
-}
+});
+
+// Estimated card height: padding(32) + topRow(20) + title(52) + body(36) + footer(20) + gap
+const CARD_HEIGHT = 172;
+const CARD_GAP = 24; // S[6]
+const ITEM_HEIGHT = CARD_HEIGHT + CARD_GAP;
+
+const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -100,6 +107,8 @@ export default function FeedScreen() {
   const [mode, setMode] = useState<FeedMode>('default');
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [activeArena, setActiveArena] = useState<Arena | null>(null);
 
   useEffect(() => {
@@ -120,9 +129,13 @@ export default function FeedScreen() {
         return;
       }
       setLoading(true);
+      setHasMore(true);
       try {
-        const res = await getFeed(user.id, mode);
-        if (mounted) setFeed(res.items);
+        const res = await getFeed(user.id, mode, PAGE_SIZE, 0);
+        if (mounted) {
+          setFeed(res.items);
+          setHasMore(res.items.length >= PAGE_SIZE);
+        }
       } catch (e) {
         console.error("Error loading feed:", e);
         showToast({ type: 'error', message: 'Failed to load feed. Pull to refresh.' });
@@ -134,14 +147,37 @@ export default function FeedScreen() {
     return () => { mounted = false; };
   }, [user?.id, mode]);
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !user?.id) return;
+    setLoadingMore(true);
+    try {
+      const res = await getFeed(user.id, mode, PAGE_SIZE, feed.length);
+      setFeed((prev) => [...prev, ...res.items]);
+      setHasMore(res.items.length >= PAGE_SIZE);
+    } catch {
+      showToast({ type: 'error', message: 'Failed to load more posts.' });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, user?.id, mode, feed.length, showToast]);
+
   const renderFeedItem = useCallback(
     ({ item }: { item: FeedItem }) => (
-      <PostCard
+      <FeedPostCard
         item={item}
         onPress={() => router.push(`/user/${item.author_id}`)}
       />
     ),
     [router],
+  );
+
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    }),
+    [],
   );
 
   const renderEmptyState = () => {
@@ -216,6 +252,9 @@ export default function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
+        getItemLayout={getItemLayout}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews
@@ -255,6 +294,11 @@ export default function FeedScreen() {
           ) : null
         }
         ListEmptyComponent={renderEmptyState}
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator color={Colors.t3} style={{ paddingVertical: S[8] }} />
+          ) : null
+        }
         renderItem={renderFeedItem}
         contentContainerStyle={styles.feedList}
         showsVerticalScrollIndicator={false}
