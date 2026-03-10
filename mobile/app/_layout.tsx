@@ -9,6 +9,7 @@ import {
   loadUserFromStorage,
 } from '../stores/userStore';
 import { bootstrapAuth } from '../lib/api';
+import { ToastProvider } from '../components/ui/Toast';
 
 export default function RootLayout() {
   const [user, setUserRaw] = useState<UserProfile | null>(null);
@@ -59,29 +60,31 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserContext.Provider value={{ user, setUser, updateProfile, resetAssessment }}>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" options={{ animation: 'fade' }} />
-          <Stack.Screen name="auth" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="onboarding" options={{ animation: 'none' }} />
-          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-          <Stack.Screen
-            name="user/[id]"
-            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-          />
-          <Stack.Screen
-            name="room/[id]"
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="arena/[id]"
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{ animation: 'slide_from_right' }}
-          />
-        </Stack>
+        <ToastProvider>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ animation: 'fade' }} />
+            <Stack.Screen name="auth" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'none' }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen
+              name="user/[id]"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="room/[id]"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="arena/[id]"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{ animation: 'slide_from_right' }}
+            />
+          </Stack>
+        </ToastProvider>
       </UserContext.Provider>
     </GestureHandlerRootView>
   );

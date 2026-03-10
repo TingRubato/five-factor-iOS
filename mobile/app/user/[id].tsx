@@ -18,6 +18,7 @@ import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
 import { getUserProfile } from '../../lib/api';
 import { useUser } from '../../stores/userStore';
+import { useToast } from '../../components/ui/Toast';
 
 const { width: W } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user: currentUser } = useUser();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +41,7 @@ export default function UserProfileScreen() {
     if (id && currentUser?.id) {
       getUserProfile(id as string, currentUser.id)
         .then((p) => setProfile(p as UserProfile))
+        .catch(() => showToast({ type: 'error', message: 'Failed to load profile.' }))
         .finally(() => setLoading(false));
     }
   }, [id, currentUser?.id]);

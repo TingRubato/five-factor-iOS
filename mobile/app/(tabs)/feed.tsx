@@ -16,6 +16,7 @@ import { useUser } from '../../stores/userStore';
 import { getFeed, FeedItem, getArenas } from '../../lib/api';
 import type { Arena } from '../../lib/arenas';
 import PressableScale from '../../components/ui/PressableScale';
+import { useToast } from '../../components/ui/Toast';
 
 type FeedMode = 'default' | 'similar' | 'opposing';
 
@@ -95,6 +96,7 @@ function PostCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
 export default function FeedScreen() {
   const router = useRouter();
   const { user } = useUser();
+  const { showToast } = useToast();
   const [mode, setMode] = useState<FeedMode>('default');
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,7 @@ export default function FeedScreen() {
         if (mounted) setFeed(res.items);
       } catch (e) {
         console.error("Error loading feed:", e);
+        showToast({ type: 'error', message: 'Failed to load feed. Pull to refresh.' });
       } finally {
         if (mounted) setLoading(false);
       }

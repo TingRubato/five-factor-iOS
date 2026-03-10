@@ -2,7 +2,7 @@
  * Arena screen — Split-thread debate UI.
  * Two side-by-side columns with auto-assigned sides, defector badge, voting.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,37 +24,40 @@ import {
 } from '../../lib/api';
 import type { Arena, ArenaPost } from '../../lib/arenas';
 import PressableScale from '../../components/ui/PressableScale';
+import { useToast } from '../../components/ui/Toast';
 
 export default function ArenaScreen() {
   const { id: arenaId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useUser();
 
+  const { showToast } = useToast();
   const [arena, setArena] = useState<Arena | null>(null);
-  const [side1Posts, setSide1Posts] = useState<ArenaPost[]>([]);
-  const [side2Posts, setSide2Posts] = useState<ArenaPost[]>([]);
+  const [posts, setPosts] = useState<ArenaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [composerText, setComposerText] = useState('');
   const [defecting, setDefecting] = useState(false);
   const [posting, setPosting] = useState(false);
   const [voted, setVoted] = useState(false);
 
+  const side1Posts = useMemo(() => posts.filter((p) => p.side === 1), [posts]);
+  const side2Posts = useMemo(() => posts.filter((p) => p.side === 2), [posts]);
+
   const fetchData = useCallback(async () => {
     if (!arenaId) return;
     try {
-      const [arenaData, posts] = await Promise.all([
+      const [arenaData, fetchedPosts] = await Promise.all([
         getArena(arenaId),
         getArenaPosts(arenaId),
       ]);
       setArena(arenaData);
-      setSide1Posts(posts.filter((p: ArenaPost) => p.side === 1));
-      setSide2Posts(posts.filter((p: ArenaPost) => p.side === 2));
+      setPosts(fetchedPosts);
     } catch {
-      // fail silently
+      showToast({ type: 'error', message: 'Failed to load debate.' });
     } finally {
       setLoading(false);
     }
-  }, [arenaId]);
+  }, [arenaId, showToast]);
 
   useEffect(() => {
     fetchData();
@@ -69,7 +72,7 @@ export default function ArenaScreen() {
       setDefecting(false);
       fetchData();
     } catch {
-      // fail silently
+      showToast({ type: 'error', message: 'Failed to post argument.' });
     } finally {
       setPosting(false);
     }
@@ -82,7 +85,7 @@ export default function ArenaScreen() {
       setVoted(true);
       fetchData();
     } catch {
-      // fail silently
+      showToast({ type: 'error', message: 'Failed to submit vote.' });
     }
   };
 
@@ -104,6 +107,7 @@ export default function ArenaScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={Colors.t3} />
+          <Text style={styles.loadingText}>Loading debate...</Text>
         </View>
       </SafeAreaView>
     );
@@ -520,5 +524,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: S[4],
+  },
+  loadingText: {
+    fontSize: T.xs,
+    color: Colors.t3,
+    letterSpacing: 0.5,
   },
 });

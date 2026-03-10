@@ -21,6 +21,7 @@ import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questio
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
 import { useQuizProgress } from '../../hooks/useQuizProgress';
+import { useToast } from '../../components/ui/Toast';
 
 
 const LIKERT_LABELS = [
@@ -70,6 +71,7 @@ export default function Phase2Screen() {
   const insets = useSafeAreaInsets();
   const { user, updateProfile } = useUser();
   const { idx: currentIndex, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase2');
+  const { showToast } = useToast();
 
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
@@ -144,6 +146,7 @@ export default function Phase2Screen() {
         router.replace('/(tabs)/profile');
       } catch (err) {
         console.error('Submit Phase 2 failed:', err);
+        showToast({ type: 'info', message: 'Scored locally — will sync when online.' });
         const combinedAnswers = { ...(user?.rawAnswers ?? {}), ...newAnswers };
         const allScores = scoreAnswers(combinedAnswers, ALL_QUESTIONS);
         updateProfile({

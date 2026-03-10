@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Colors, S, T, R } from '../constants/theme';
 import { useUser } from '../stores/userStore';
 import { updateProfileVisibility, clearProfileScores, deleteUserAccount } from '../lib/api';
+import { useToast } from '../components/ui/Toast';
 
 function RowItem({
   label,
@@ -30,18 +31,23 @@ function RowItem({
 }) {
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={[styles.row, destructive && styles.rowDestructive]}
       onPress={onPress}
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress || disabled}
     >
-      <Text style={[
-        styles.rowLabel, 
-        destructive && styles.rowLabelDestructive,
-        disabled && { opacity: 0.5 }
-      ]}>
-        {label}
-      </Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[
+          styles.rowLabel,
+          destructive && styles.rowLabelDestructive,
+          disabled && { opacity: 0.5 }
+        ]}>
+          {label}
+        </Text>
+        {destructive && (
+          <Text style={styles.dangerHint}>This cannot be undone</Text>
+        )}
+      </View>
       {value && <Text style={styles.rowValue}>{value} ›</Text>}
     </TouchableOpacity>
   );
@@ -50,6 +56,7 @@ function RowItem({
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, updateProfile, setUser, resetAssessment } = useUser();
+  const { showToast } = useToast();
   const [isPublic, setIsPublic] = useState(user?.isPublic !== false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -65,10 +72,10 @@ export default function SettingsScreen() {
       try {
         await updateProfileVisibility(user.id, val);
         updateProfile({ isPublic: val });
+        showToast({ type: 'success', message: 'Privacy settings updated.' });
       } catch (err: any) {
-        // Rollback
         setIsPublic(previousVal);
-        Alert.alert('Update Failed', err.message || 'Could not update privacy settings.');
+        showToast({ type: 'error', message: err.message || 'Could not update privacy settings.' });
       } finally {
         setIsUpdating(false);
       }
@@ -91,9 +98,9 @@ export default function SettingsScreen() {
               try {
                 await clearProfileScores(user.id);
                 resetAssessment();
-                Alert.alert('Success', 'Your personality data has been cleared.');
+                showToast({ type: 'success', message: 'Personality data cleared.' });
               } catch (err: any) {
-                Alert.alert('Error', err.message || 'Failed to clear data from server.');
+                showToast({ type: 'error', message: err.message || 'Failed to clear data.' });
               }
             } else {
               resetAssessment();
@@ -121,7 +128,7 @@ export default function SettingsScreen() {
                 setUser(null);
                 router.replace('/');
               } catch (err: any) {
-                Alert.alert('Error', err.message || 'Failed to delete account.');
+                showToast({ type: 'error', message: err.message || 'Failed to delete account.' });
               }
             } else {
               setUser(null);
@@ -292,8 +299,19 @@ const styles = StyleSheet.create({
     color: Colors.black,
     fontWeight: T.regular,
   },
+  rowDestructive: {
+    backgroundColor: `${Colors.accent}08`,
+  },
   rowLabelDestructive: {
     color: Colors.accent,
+    fontWeight: T.semibold,
+  },
+  dangerHint: {
+    fontSize: T.xs,
+    color: Colors.accent,
+    opacity: 0.7,
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   rowSub: {
     fontSize: T.xs,
