@@ -20,9 +20,10 @@ interface PostCardProps {
   archetype?: string;
   upvotes?: number;
   isSerendipity?: boolean;
+  onPress?: () => void;
 }
 
-export default function PostCard({
+function PostCardInner({
   id,
   author,
   authorId,
@@ -31,10 +32,10 @@ export default function PostCard({
   archetype,
   upvotes = 0,
   isSerendipity,
+  onPress,
 }: PostCardProps) {
   const router = useRouter();
   const scale = useSharedValue(1);
-  const shadowOpacity = useSharedValue(0.04);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -44,16 +45,12 @@ export default function PostCard({
     <Pressable
       onPressIn={() => {
         scale.value = withSpring(0.975, { damping: 15, stiffness: 400 });
-        shadowOpacity.value = withSpring(0.01);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }}
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 300 });
-        shadowOpacity.value = withSpring(0.04);
       }}
-      onPress={() => {
-        // Navigate to post detail or author profile
-      }}
+      onPress={onPress ?? (() => router.push(`/user/${authorId}`))}
     >
       <Animated.View style={[styles.card, cardStyle]}>
         <View style={styles.header}>
@@ -91,6 +88,9 @@ export default function PostCard({
   );
 }
 
+const PostCard = React.memo(PostCardInner);
+export default PostCard;
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
@@ -113,24 +113,24 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: T.sm,
-    fontWeight: '600',
+    fontWeight: T.semibold,
     color: Colors.t1,
   },
   serendipityTag: {
     backgroundColor: Colors.serendipity,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: S[2],
+    paddingVertical: S.hairline,
     borderRadius: R.sm,
   },
   serendipityText: {
-    fontSize: 8,
-    fontWeight: '700',
+    fontSize: T.micro,
+    fontWeight: T.bold,
     color: Colors.serendipityDim,
     letterSpacing: 0.5,
   },
   title: {
     fontSize: T.lg + 2,
-    fontWeight: '300',
+    fontWeight: T.light,
     color: Colors.t1,
     lineHeight: 24,
     marginBottom: S[2],
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   upvotes: {
     fontSize: T.xs,
     color: Colors.t3,
-    fontWeight: '600',
+    fontWeight: T.semibold,
     marginTop: S[2],
   },
 });

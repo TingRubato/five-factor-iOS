@@ -2,12 +2,15 @@
 Arena service — debate management, auto-side assignment, voting.
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from sqlalchemy import func, case
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.services.sanitize import sanitize_text
 
 
 # ── Queries ───────────────────────────────────────────────────
@@ -24,12 +27,13 @@ def get_arena(db: Session, arena_id: str) -> Optional[models.Arena]:
 
 
 def get_arena_posts(
-    db: Session, arena_id: str, side: Optional[int] = None
+    db: Session, arena_id: str, side: Optional[int] = None,
+    limit: int = 50, offset: int = 0,
 ) -> list[models.ArenaPost]:
     q = db.query(models.ArenaPost).filter(models.ArenaPost.arena_id == arena_id)
     if side is not None:
         q = q.filter(models.ArenaPost.side == side)
-    return q.order_by(models.ArenaPost.created_at.asc()).all()
+    return q.order_by(models.ArenaPost.created_at.asc()).offset(offset).limit(limit).all()
 
 
 # ── Side Assignment ───────────────────────────────────────────
@@ -66,13 +70,7 @@ def create_arena_post(
     if not profile:
         raise ValueError("User must complete quiz first")
 
-    user_scores = {
-        "O": profile.o_score or 50,
-        "C": profile.c_score or 50,
-        "E": profile.e_score or 50,
-        "A": profile.a_score or 50,
-        "N": profile.n_score or 50,
-    }
+    user_scores = {k: v or 50 for k, v in profile.to_ocean_dict().items()}
 
     natural_side = assign_user_side(user_scores, arena.dim1, arena.dim2)
     is_defector = False
@@ -88,7 +86,7 @@ def create_arena_post(
         arena_id=arena_id,
         user_id=user_id,
         side=side,
-        body=body,
+        body=sanitize_text(body, max_length=5000),
         is_defector=is_defector,
     )
     db.add(post)
@@ -100,24 +98,12 @@ def create_arena_post(
 # ── Voting ────────────────────────────────────────────────────
 
 def vote(db: Session, arena_id: str, voter_id: str, voted_side: int) -> models.ArenaVote:
-    """Cast a vote. Only allowed during voting phase."""
+    """Cast a vote. Only allowed during voting phase. Uses DB unique constraint to prevent duplicates."""
     arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
     if not arena:
         raise ValueError("Arena not found")
     if arena.status != "voting":
         raise ValueError("Voting is not open")
-
-    # Check for existing vote
-    existing = (
-        db.query(models.ArenaVote)
-        .filter(
-            models.ArenaVote.arena_id == arena_id,
-            models.ArenaVote.voter_id == voter_id,
-        )
-        .first()
-    )
-    if existing:
-        raise ValueError("Already voted")
 
     v = models.ArenaVote(
         id=str(uuid.uuid4()),
@@ -126,16 +112,22 @@ def vote(db: Session, arena_id: str, voter_id: str, voted_side: int) -> models.A
         voted_side=voted_side,
     )
     db.add(v)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise ValueError("Already voted")
     db.refresh(v)
     return v
 
 
 def get_arena_results(db: Session, arena_id: str) -> dict:
-    """Get vote counts and winner for an arena."""
-    votes = db.query(models.ArenaVote).filter(models.ArenaVote.arena_id == arena_id).all()
-    side1 = sum(1 for v in votes if v.voted_side == 1)
-    side2 = sum(1 for v in votes if v.voted_side == 2)
+    """Get vote counts and winner for an arena using SQL aggregation."""
+    row = db.query(
+        func.coalesce(func.sum(case((models.ArenaVote.voted_side == 1, 1), else_=0)), 0).label("side1"),
+        func.coalesce(func.sum(case((models.ArenaVote.voted_side == 2, 1), else_=0)), 0).label("side2"),
+    ).filter(models.ArenaVote.arena_id == arena_id).one()
+    side1, side2 = int(row.side1), int(row.side2)
     winner = 1 if side1 > side2 else 2 if side2 > side1 else 0
     return {"side1_votes": side1, "side2_votes": side2, "winner": winner}
 
@@ -148,7 +140,7 @@ def seed_initial_arena(db: Session) -> None:
     if existing:
         return
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     arena = models.Arena(
         id="arena_1",
         topic="Structure kills creativity",

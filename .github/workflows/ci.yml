@@ -67,6 +67,30 @@ jobs:
       working-directory: ./mobile
       run: npx tsc
 
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Audit Python dependencies
+      run: |
+        pip install pip-audit
+        pip-audit -r backend/requirements.txt || true
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Audit npm dependencies
+      working-directory: ./mobile
+      run: npm audit --audit-level=high || true
+
   docker-build-check:
     runs-on: ubuntu-latest
     steps:

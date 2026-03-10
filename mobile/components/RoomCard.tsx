@@ -78,13 +78,13 @@ const styles = StyleSheet.create({
   roleBadge: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    marginBottom: 2,
+    paddingHorizontal: S[2],
+    paddingVertical: S.hairline,
+    marginBottom: S.hairline,
   },
   roleBadgeText: {
-    fontSize: 7,
-    fontWeight: '700',
+    fontSize: T.micro,
+    fontWeight: T.bold,
     letterSpacing: 1.5,
   },
   name: {
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: S[1],
   },
   activeDot: {
     width: 5,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
   },
   memberText: {
-    fontSize: 9,
+    fontSize: T.micro,
     fontWeight: T.medium,
     color: Colors.t3,
     letterSpacing: 0.5,

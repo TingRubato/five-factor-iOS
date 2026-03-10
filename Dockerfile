@@ -19,6 +19,10 @@ COPY ipipneo/ ./ipipneo/
 # Set Python path
 ENV PYTHONPATH=/app
 
+# Create non-root user
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
+
 # Expose port
 EXPOSE 8000
 

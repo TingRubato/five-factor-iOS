@@ -49,9 +49,10 @@ export default function ProgressBar({ value, height = 2 }: ProgressBarProps) {
   }));
 
   const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: dotScale.value }],
-    // Dot trails the fill tip
-    left: fill.value * W - DOT_SIZE / 2,
+    transform: [
+      { translateX: fill.value * W - DOT_SIZE / 2 },
+      { scale: dotScale.value },
+    ],
   }));
 
   return (

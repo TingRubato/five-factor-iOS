@@ -77,6 +77,15 @@ class CreatePostRequest(BaseModel):
     topic_id: Optional[str] = None
 
 
+class ArenaPostRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+    force_side: Optional[int] = None  # 1 or 2, null = auto-assign
+
+
+class ArenaVoteRequest(BaseModel):
+    side: int  # 1 or 2
+
+
 # ── Response Models ───────────────────────────────────────────────────────────
 
 class UserResponse(BaseModel):
@@ -168,3 +177,44 @@ class FeedPageResponse(BaseModel):
 
     items: List[FeedItemResponse]
     pagination: PaginationMeta
+
+
+class RoomResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    dimension: Optional[str] = None
+    name: str
+    name_zh: Optional[str] = None
+    description: Optional[str] = None
+    room_type: str
+    color: str
+    member_count: int = 0
+
+
+class ArenaPostResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    arena_id: str
+    user_id: str
+    side: int
+    body: str
+    is_defector: bool = False
+    created_at: Optional[datetime] = None
+
+
+class ArenaResponse(BaseModel):
+    id: str
+    topic: str
+    topic_zh: Optional[str] = None
+    dim1: Optional[str] = None
+    dim2: Optional[str] = None
+    side1_label: Optional[str] = None
+    side2_label: Optional[str] = None
+    status: str
+    starts_at: Optional[datetime] = None
+    voting_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    side1_count: int = 0
+    side2_count: int = 0

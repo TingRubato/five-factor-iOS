@@ -55,6 +55,9 @@ build
 .gemini/
 gha-creds-*.json
 test.db
+test_*.db
+*.db
+!backend/alembic/versions/*.py
 .full-review/
 backend/__pycache__/
 mobile/node_modules/

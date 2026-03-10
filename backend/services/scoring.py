@@ -1,7 +1,36 @@
+"""
+Archetype Scoring Engine
+========================
+
+Determines a user's primary and secondary archetype from Big Five (OCEAN) scores
+using a **Top-2 Z-Score** strategy:
+
+1. Raw OCEAN scores (0-100 scale) are converted to Z-scores using population norms.
+2. The two dimensions with the highest absolute Z-scores are identified.
+3. The sign (high/low) and combination of these top-2 dimensions maps to one of
+   12 named archetypes.
+
+Archetype Mappings (Top-2 → Primary):
+  High O + High E  → Explorer Creator
+  High E + High O  → Adventurous Doer
+  High O + High C  → Speculative Researcher
+  High A + High N  → Sensitive Empath
+  High E + Low A   → Blunt Challenger
+  High O + Low C   → Romantic Idealist
+  High C + High E  → Disciplined Achiever
+  High C + Low E   → Steady Executor
+  High A + Low N   → Gentle Coordinator
+  High O + Low E/A → Independent Observer
+  High C + High A  → Stable Guardian
+  Variance < 0.25  → Balanced Breaker (no extreme polarities)
+
+Population Norms:
+  Currently using approximated symmetric norms (mean=50, std=15) for all
+  dimensions. In production, these should be updated with rolling statistics
+  from actual user submissions to improve Z-score accuracy.
+"""
 import math
 
-# These are approximated means and standard deviations from population norms.
-# In a real-world scenario, these would continually adjust based on rolling population statistics.
 POPULATION_NORMS = {
     "O": {"mean": 50, "std": 15},
     "C": {"mean": 50, "std": 15},

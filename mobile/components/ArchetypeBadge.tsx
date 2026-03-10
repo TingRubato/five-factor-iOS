@@ -50,13 +50,13 @@ export default function ArchetypeBadge({
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: S[4],
+    paddingVertical: S[1],
     borderRadius: R.sm,
   },
   badgeText: {
     fontSize: T.xs,
-    fontWeight: '700',
+    fontWeight: T.bold,
     letterSpacing: 1,
   },
   lgContainer: {
@@ -65,18 +65,18 @@ const styles = StyleSheet.create({
   },
   lgLabel: {
     fontSize: T.hero,
-    fontWeight: '200',
+    fontWeight: T.light,
     letterSpacing: 4,
   },
   lgName: {
     fontSize: T.xl,
-    fontWeight: '300',
+    fontWeight: T.light,
     color: Colors.black,
     letterSpacing: 2,
   },
   lgNameZh: {
     fontSize: T.md,
     color: Colors.t2,
-    fontWeight: '300',
+    fontWeight: T.light,
   },
 });

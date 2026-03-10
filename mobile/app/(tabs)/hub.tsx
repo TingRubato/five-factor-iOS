@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Colors, S, T, R, Fonts } from '../../constants/theme';
+import { Colors, S, T, R, Fonts, DIM_COLORS } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
 import { getRooms, getUserRooms, getArenas } from '../../lib/api';
@@ -160,7 +160,7 @@ export default function HubScreen() {
                       name={room.name}
                       nameZh={room.name_zh}
                       color={room.color}
-                      roomType={room.room_type as any}
+                      roomType={room.room_type as 'dimension' | 'commons' | 'shadow'}
                       memberCount={
                         rooms.find((r) => r.id === room.room_id)?.member_count ?? 0
                       }
@@ -181,9 +181,6 @@ export default function HubScreen() {
                 </Text>
               </View>
               {activeArenas.map((arena) => {
-                const DIM_COLORS: Record<string, string> = {
-                  O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
-                };
                 const c1 = DIM_COLORS[arena.dim1] ?? Colors.t3;
                 const c2 = DIM_COLORS[arena.dim2] ?? Colors.t3;
                 return (

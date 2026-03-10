@@ -3,15 +3,7 @@
  */
 import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, T, S } from '../../constants/theme';
-
-const DIM_COLORS: Record<string, string> = {
-  O: '#AF52DE',
-  C: '#30B0C7',
-  E: '#FF3B30',
-  A: '#5AC8FA',
-  N: '#FF9500',
-};
+import { Colors, T, S, DIM_COLORS } from '../../constants/theme';
 
 const DIM_NAMES: Record<string, { en: string; zh: string }> = {
   O: { en: 'Openness', zh: '开放性' },

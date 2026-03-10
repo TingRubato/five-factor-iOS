@@ -21,16 +21,15 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 
-client = TestClient(app)
-
-@pytest.fixture(autouse=True)
-def run_around_tests():
+@pytest.fixture
+def client():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    yield
+    with TestClient(app) as c:
+        yield c
     Base.metadata.drop_all(bind=engine)
 
-def test_full_user_journey_e2e():
+def test_full_user_journey_e2e(client):
     """
     Comprehensive E2E smoke test covering the core business flow:
     1. Registration
@@ -108,7 +107,7 @@ def test_full_user_journey_e2e():
     assert len(feed_data["items"]) >= 1
     assert feed_data["items"][0]["author_id"] == user_id
 
-def test_auth_failure_modes():
+def test_auth_failure_modes(client):
     # Attempt login with wrong password
     client.post("/users/", json={
         "username": "fail_user",
@@ -126,7 +125,7 @@ def test_auth_failure_modes():
     no_auth = client.get("/profile/any_id")
     assert no_auth.status_code == 401
 
-def test_idor_prevention():
+def test_idor_prevention(client):
     # User A
     res_a = client.post("/users/", json={"username": "user_a", "email": "a@x.com", "password": "securepassword"})
     assert res_a.status_code == 201

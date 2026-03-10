@@ -3,49 +3,59 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Image,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { 
-  FadeIn, 
+import Animated, {
+  FadeIn,
   FadeInDown,
-  SlideInDown,
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
 import { getUserProfile } from '../../lib/api';
 import { useUser } from '../../stores/userStore';
+import { useToast } from '../../components/ui/Toast';
 
 const { width: W } = Dimensions.get('window');
+
+interface UserProfile {
+  user_id: string;
+  username: string;
+  primary_archetype: string | null;
+  compatibility: number;
+}
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user: currentUser } = useUser();
-  const [profile, setProfile] = useState<any>(null);
+  const { showToast } = useToast();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id && currentUser?.id) {
       getUserProfile(id as string, currentUser.id)
-        .then(setProfile)
+        .then((p) => setProfile(p as UserProfile))
+        .catch(() => showToast({ type: 'error', message: 'Failed to load profile.' }))
         .finally(() => setLoading(false));
     }
-  }, [id, currentUser]);
+  }, [id, currentUser?.id]);
 
   if (loading || !profile) return null;
 
-  const archetype = ARCHETYPES[profile.primary_archetype.toLowerCase().replace(/ /g, '_')] || ARCHETYPES.explorer_creator;
+  const archetypeKey = profile.primary_archetype?.toLowerCase().replace(/ /g, '_') ?? 'explorer_creator';
+  const archetype = ARCHETYPES[archetypeKey] || ARCHETYPES.explorer_creator;
   const compatibility = profile.compatibility || 0;
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Brutalist Header */}
-      <header style={styles.header}>
+      <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => router.back()} 
           style={styles.backBtn}
@@ -56,7 +66,7 @@ export default function UserProfileScreen() {
           <Text style={styles.headerLabel}>PEER PROFILE</Text>
           <Text style={styles.headerId}>ID: {profile.user_id.slice(0, 6).toUpperCase()}</Text>
         </View>
-      </header>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -86,7 +96,7 @@ export default function UserProfileScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>ARCHETYPE BREAKDOWN</Text>
             <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{profile.primary_archetype.toUpperCase()}</Text>
+              <Text style={styles.typeBadgeText}>{profile.primary_archetype?.toUpperCase()}</Text>
             </View>
           </View>
 
@@ -196,7 +206,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: S[4],
   },
-  headerLabel: { fontSizes: T.sm, fontWeight: '900', letterSpacing: 1 },
+  headerLabel: { fontSize: T.sm, fontWeight: '900', letterSpacing: 1 },
   headerId: { fontFamily: Fonts?.mono, fontSize: 10, color: Colors.t3 },
   
   content: { paddingBottom: 120 },
@@ -215,7 +225,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.black,
     ...Shadows.brutalist,
   },
-  avatar: { width: '100%', height: '100%', grayscale: 1 } as any,
+  avatar: { width: '100%', height: '100%' },
   heroText: { flex: 1, paddingBottom: 4 },
   matchBadge: {
     backgroundColor: Colors.black,
@@ -256,7 +266,7 @@ const styles = StyleSheet.create({
   breakdownList: { gap: S[4] },
   breakdownRow: { gap: S[1] },
   breakdownMeta: { flexDirection: 'row', justifyContent: 'space-between' },
-  breakdownLabel: { fontSize: 11, fontWeight: '900', uppercase: true } as any,
+  breakdownLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   breakdownValue: { fontSize: 11, fontWeight: 'bold', fontFamily: Fonts?.mono },
   track: { height: 16, borderWidth: 2, borderColor: Colors.black, backgroundColor: '#F0F0F0' },
   fill: { height: '100%' },

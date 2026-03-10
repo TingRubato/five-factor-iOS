@@ -195,7 +195,7 @@ export default function ProfileScreen() {
                   name={room.name}
                   nameZh={room.name_zh}
                   color={room.color}
-                  roomType={room.room_type as any}
+                  roomType={room.room_type as 'dimension' | 'commons' | 'shadow'}
                   memberCount={0}
                   role={room.role}
                   onPress={() => router.push(`/room/${room.room_id}`)}
