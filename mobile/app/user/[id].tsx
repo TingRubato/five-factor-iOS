@@ -21,31 +21,32 @@ import { useUser } from '../../stores/userStore';
 
 const { width: W } = Dimensions.get('window');
 
+interface UserProfile {
+  user_id: string;
+  username: string;
+  primary_archetype: string | null;
+  compatibility: number;
+}
+
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user: currentUser } = useUser();
-  interface UserProfile {
-    user_id: string;
-    username: string;
-    primary_archetype: string | null;
-    compatibility: number;
-    [key: string]: unknown;
-  }
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id && currentUser?.id) {
       getUserProfile(id as string, currentUser.id)
-        .then(setProfile)
+        .then((p) => setProfile(p as UserProfile))
         .finally(() => setLoading(false));
     }
   }, [id, currentUser?.id]);
 
   if (loading || !profile) return null;
 
-  const archetype = ARCHETYPES[profile.primary_archetype?.toLowerCase().replace(/ /g, '_')] || ARCHETYPES.explorer_creator;
+  const archetypeKey = profile.primary_archetype?.toLowerCase().replace(/ /g, '_') ?? 'explorer_creator';
+  const archetype = ARCHETYPES[archetypeKey] || ARCHETYPES.explorer_creator;
   const compatibility = profile.compatibility || 0;
 
   return (
