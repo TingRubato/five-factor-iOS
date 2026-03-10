@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -43,6 +44,7 @@ function layoutForIndex(idx: number): Layout {
 
 export default function Phase1Screen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, updateProfile } = useUser();
   const { idx, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase1');
 
@@ -114,7 +116,7 @@ export default function Phase1Screen() {
       <ProgressBar value={(idx + 1) / total} />
 
       {/* Top bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { top: insets.top + S[4] }]}>
         <Text style={[styles.dimLabel, { color: dimColor }]}>
           {DIM_LABELS[q.dimension]}
         </Text>
@@ -216,7 +218,6 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: 'absolute',
-    top: 56,
     left: S[12],
     right: S[12],
     flexDirection: 'row',
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   },
   bigNumber: {
     fontSize: 120,
-    fontWeight: '100',
+    fontWeight: T.thin,
     position: 'absolute',
     top: -50,
     right: -10,

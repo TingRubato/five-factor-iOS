@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -66,6 +67,7 @@ function layoutForIndex(idx: number): Layout {
 
 export default function Phase2Screen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, updateProfile } = useUser();
   const { idx: currentIndex, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase2');
 
@@ -191,7 +193,7 @@ export default function Phase2Screen() {
       <ProgressBar value={(currentIndex + 1) / total} height={3} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { top: insets.top + S[4] }]}>
         <Text style={[styles.phaseLabel, { color: dimColor }]}>
           {DIM_LABELS[question.dimension]}
         </Text>
@@ -295,7 +297,6 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 56,
     left: S[12],
     right: S[12],
     flexDirection: 'row',
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
   },
   phaseLabel: {
     fontSize: T.xs,
-    fontWeight: '700',
+    fontWeight: T.bold,
     letterSpacing: 2,
   },
   counter: {
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     color: Colors.t3,
     fontFamily: Fonts?.mono,
     letterSpacing: 1,
-    fontWeight: '600',
+    fontWeight: T.semibold,
   },
 
   // Question card
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
   },
   bigNumber: {
     fontSize: 120,
-    fontWeight: '100',
+    fontWeight: T.thin,
     position: 'absolute',
     top: -50,
     right: -10,
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
   },
   questionText: {
     fontSize: T.xxl,
-    fontWeight: '200',
+    fontWeight: T.light,
     color: Colors.black,
     lineHeight: 42,
     letterSpacing: -0.5,
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
   },
   questionTextZh: {
     fontSize: T.base,
-    fontWeight: '300',
+    fontWeight: T.light,
     color: Colors.t2,
     lineHeight: 22,
   },
@@ -383,7 +384,7 @@ const styles = StyleSheet.create({
     fontSize: T.xs,
     color: Colors.t3,
     letterSpacing: 1.5,
-    fontWeight: '600',
+    fontWeight: T.semibold,
   },
   hint: {
     fontSize: T.xs,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
   },
   interstitialTitle: {
     fontSize: T.xxl,
-    fontWeight: '200',
+    fontWeight: T.light,
     color: Colors.white,
     marginBottom: S[12],
     textAlign: 'center',
@@ -418,7 +419,7 @@ const styles = StyleSheet.create({
     color: Colors.t3,
     textAlign: 'center',
     lineHeight: 24,
-    fontWeight: '300',
+    fontWeight: T.light,
   },
   continueBtn: {
     width: '100%',
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
   },
   continueBtnText: {
     color: Colors.white,
-    fontWeight: '700',
+    fontWeight: T.bold,
     letterSpacing: 3,
     fontSize: T.sm,
   },

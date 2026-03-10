@@ -110,24 +110,24 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: T.sm,
-    fontWeight: '600',
+    fontWeight: T.semibold,
     color: Colors.t1,
   },
   serendipityTag: {
     backgroundColor: Colors.serendipity,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: S[2],
+    paddingVertical: S.hairline,
     borderRadius: R.sm,
   },
   serendipityText: {
-    fontSize: 8,
-    fontWeight: '700',
+    fontSize: T.micro,
+    fontWeight: T.bold,
     color: Colors.serendipityDim,
     letterSpacing: 0.5,
   },
   title: {
     fontSize: T.lg + 2,
-    fontWeight: '300',
+    fontWeight: T.light,
     color: Colors.t1,
     lineHeight: 24,
     marginBottom: S[2],
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   upvotes: {
     fontSize: T.xs,
     color: Colors.t3,
-    fontWeight: '600',
+    fontWeight: T.semibold,
     marginTop: S[2],
   },
 });
