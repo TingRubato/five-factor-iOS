@@ -17,7 +17,19 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:8081", "exp://127.0.0.1:8081", "http://localhost:3000"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "exp://127.0.0.1:8081",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ]
+
+    @property
+    def get_cors_origins(self) -> List[str]:
+        if self.DEBUG:
+            return self.CORS_ORIGINS + ["http://localhost:19006", "http://localhost:8082"]
+        return self.CORS_ORIGINS
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -26,17 +38,17 @@ class Settings(BaseSettings):
     )
 
 def get_settings():
-    # If DATABASE_URL is not provided, we might be in local dev without .env
-    # We can provide a default for dev, but let's be strict if it's missing.
     try:
         return Settings()
     except Exception as e:
-        print(f"Configuration Error: {e}")
-        # Fallback for very basic local dev if not even a .env exists
-        if not os.environ.get("DATABASE_URL"):
-            os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/archetype"
-        if not os.environ.get("SECRET_KEY"):
-            os.environ["SECRET_KEY"] = "dev-secret-key-change-me"
-        return Settings()
+        env = os.environ.get("ENV", "production")
+        if env in ("development", "test"):
+            # Only provide dev defaults in explicit dev/test environments
+            if not os.environ.get("DATABASE_URL"):
+                os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/archetype"
+            if not os.environ.get("SECRET_KEY"):
+                os.environ["SECRET_KEY"] = "dev-secret-key-change-me"
+            return Settings()
+        raise SystemExit(f"FATAL: Cannot start without proper configuration: {e}")
 
 settings = get_settings()

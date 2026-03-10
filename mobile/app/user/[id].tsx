@@ -3,17 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Image,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { 
-  FadeIn, 
+import Animated, {
+  FadeIn,
   FadeInDown,
-  SlideInDown,
 } from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
@@ -35,17 +34,17 @@ export default function UserProfileScreen() {
         .then(setProfile)
         .finally(() => setLoading(false));
     }
-  }, [id, currentUser]);
+  }, [id, currentUser?.id]);
 
   if (loading || !profile) return null;
 
-  const archetype = ARCHETYPES[profile.primary_archetype.toLowerCase().replace(/ /g, '_')] || ARCHETYPES.explorer_creator;
+  const archetype = ARCHETYPES[profile.primary_archetype?.toLowerCase().replace(/ /g, '_')] || ARCHETYPES.explorer_creator;
   const compatibility = profile.compatibility || 0;
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Brutalist Header */}
-      <header style={styles.header}>
+      <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => router.back()} 
           style={styles.backBtn}
@@ -56,7 +55,7 @@ export default function UserProfileScreen() {
           <Text style={styles.headerLabel}>PEER PROFILE</Text>
           <Text style={styles.headerId}>ID: {profile.user_id.slice(0, 6).toUpperCase()}</Text>
         </View>
-      </header>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -86,7 +85,7 @@ export default function UserProfileScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>ARCHETYPE BREAKDOWN</Text>
             <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{profile.primary_archetype.toUpperCase()}</Text>
+              <Text style={styles.typeBadgeText}>{profile.primary_archetype?.toUpperCase()}</Text>
             </View>
           </View>
 
@@ -196,7 +195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: S[4],
   },
-  headerLabel: { fontSizes: T.sm, fontWeight: '900', letterSpacing: 1 },
+  headerLabel: { fontSize: T.sm, fontWeight: '900', letterSpacing: 1 },
   headerId: { fontFamily: Fonts?.mono, fontSize: 10, color: Colors.t3 },
   
   content: { paddingBottom: 120 },

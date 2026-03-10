@@ -12,14 +12,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-
-const DIM_COLORS: Record<string, string> = {
-  O: '#AF52DE', // violet
-  C: '#30B0C7', // teal
-  E: '#FF3B30', // red
-  A: '#5AC8FA', // sky
-  N: '#FF9500', // amber
-};
+import { DIM_COLORS } from '../../constants/theme';
 
 interface QuizBackgroundProps {
   dimension: string;

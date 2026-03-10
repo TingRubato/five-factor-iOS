@@ -1,11 +1,14 @@
 """
 Auth routes — Apple Sign In, Google Sign In, Phone OTP, Guest Migration.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend import schemas, models
+from backend.config import settings
 from backend.database import get_db
+from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -52,15 +55,20 @@ async def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(ge
 
 
 @router.post("/phone/send-otp")
-async def send_otp(body: schemas.PhoneOtpRequest):
+@limiter.limit("3/minute")
+async def send_otp(request: Request, body: schemas.PhoneOtpRequest):
     """Send a 6-digit OTP to the given phone number."""
     code = auth_service.generate_otp(body.phone)
-    # In production, send via SMS. For dev, return the code.
-    return {"message": "OTP sent", "dev_code": code}
+    # In production, send via SMS provider (Twilio, etc.)
+    response = {"message": "OTP sent"}
+    if settings.DEBUG:
+        response["dev_code"] = code
+    return response
 
 
 @router.post("/phone/verify", response_model=schemas.AuthResponse)
-async def verify_phone_otp(body: schemas.VerifyOtpRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def verify_phone_otp(request: Request, body: schemas.VerifyOtpRequest, db: Session = Depends(get_db)):
     """Verify phone OTP and authenticate."""
     if not auth_service.verify_otp(body.phone, body.code):
         raise HTTPException(
@@ -77,9 +85,18 @@ async def verify_phone_otp(body: schemas.VerifyOtpRequest, db: Session = Depends
 
 @router.post("/migrate-guest", response_model=schemas.AuthResponse)
 async def migrate_guest_account(
-    body: schemas.MigrateGuestRequest, db: Session = Depends(get_db)
+    body: schemas.MigrateGuestRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Migrate a guest account to a full authenticated account."""
+    # Verify the caller owns the guest account
+    if current_user.id != body.guest_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only migrate your own guest account",
+        )
+
     provider_id = None
     phone = None
     email = None

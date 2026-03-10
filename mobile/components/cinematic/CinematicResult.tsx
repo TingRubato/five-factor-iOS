@@ -24,7 +24,7 @@ import ActDimension from './ActDimension';
 import ActTension from './ActTension';
 import ActConvergence from './ActConvergence';
 import ActReveal from './ActReveal';
-import ActReflection from './ActReflection';
+import ActReport from './ActReport';
 
 const TOTAL_ACTS = 8;
 
@@ -134,10 +134,13 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
 
   // Gestures: tap to advance, swipe to navigate
   // Callbacks run on UI thread — must use runOnJS for state updates
-  const tap = Gesture.Tap().onEnd(() => {
-    'worklet';
-    runOnJS(advance)();
-  });
+  // Disable tap gesture on report act so ScrollView works
+  const tap = Gesture.Tap()
+    .enabled(act < 7)
+    .onEnd(() => {
+      'worklet';
+      runOnJS(advance)();
+    });
   const swipe = Gesture.Pan()
     .activeOffsetX([-30, 30])
     .onEnd((e) => {
@@ -158,17 +161,21 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
   return (
     <GestureDetector gesture={gesture}>
       <SafeAreaView style={styles.container}>
-        {/* Aurora layer */}
-        {act > 0 && (
-          <View style={StyleSheet.absoluteFill}>
-            <AuroraBackground lightColor={auroraColors.light} deepColor={auroraColors.deep} />
-          </View>
-        )}
+        {/* Aurora layer — always mounted, opacity-toggled to prevent flicker */}
+        <View
+          style={[StyleSheet.absoluteFill, { opacity: (act > 0 && act < 7) ? 1 : 0 }]}
+          pointerEvents={(act > 0 && act < 7) ? "auto" : "none"}
+        >
+          <AuroraBackground lightColor={auroraColors.light} deepColor={auroraColors.deep} />
+        </View>
 
-        {/* Particle layer */}
-        {act > 0 && act < 7 && (
+        {/* Particle layer — always mounted, opacity-toggled */}
+        <View
+          style={[StyleSheet.absoluteFill, { opacity: (act > 0 && act < 7) ? 1 : 0 }]}
+          pointerEvents={(act > 0 && act < 7) ? "auto" : "none"}
+        >
           <ParticleField count={25} color={particleColor} behavior={particleBehavior} />
-        )}
+        </View>
 
         {/* Act content */}
         <View style={styles.content}>
@@ -186,12 +193,14 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
                   dimInfo={{ ...topDim, tier: 'mid' }}
                   locale={locale}
                   actLabel={locale === 'zh' ? '均衡' : 'THE EQUILIBRIUM'}
+                  variant="hero"
                 />
               ) : (
                 <ActDimension
                   dimInfo={act === 1 ? topDim : act === 2 ? secondDim : lowestDim}
                   locale={locale}
                   actLabel={actLabels[act]}
+                  variant={act === 1 ? 'hero' : act === 2 ? 'card' : 'shadow'}
                 />
               )}
             </Animated.View>
@@ -233,13 +242,18 @@ export default function CinematicResult({ scores, archetypeName }: CinematicResu
               exiting={FadeOut.duration(400)}
               style={styles.actWrap}
             >
-              <ActReflection locale={locale} onEnter={enterWorld} />
+              <ActReport
+                scores={scores}
+                archetype={archetype}
+                locale={locale}
+                onEnter={enterWorld}
+              />
             </Animated.View>
           )}
         </View>
 
-        {/* Navigation indicator */}
-        {act > 0 && (
+        {/* Navigation indicator (hidden for report act) */}
+        {act > 0 && act < 7 && (
           <View style={styles.indicator}>
             <ActIndicator
               total={TOTAL_ACTS}

@@ -3,36 +3,43 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, S, T, R } from '../constants/theme';
 import { useUser } from '../stores/userStore';
-import { updateProfileVisibility } from '../lib/api';
+import { updateProfileVisibility, clearProfileScores, deleteUserAccount } from '../lib/api';
 
 function RowItem({
   label,
   value,
   onPress,
   destructive,
+  disabled,
 }: {
   label: string;
   value?: string;
   onPress?: () => void;
   destructive?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={onPress}
       activeOpacity={onPress ? 0.6 : 1}
-      disabled={!onPress}
+      disabled={!onPress || disabled}
     >
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>
+      <Text style={[
+        styles.rowLabel, 
+        destructive && styles.rowLabelDestructive,
+        disabled && { opacity: 0.5 }
+      ]}>
         {label}
       </Text>
       {value && <Text style={styles.rowValue}>{value} ›</Text>}
@@ -42,39 +49,56 @@ function RowItem({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, updateProfile, setUser } = useUser();
+  const { user, updateProfile, setUser, resetAssessment } = useUser();
   const [isPublic, setIsPublic] = useState(user?.isPublic !== false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleTogglePublic = async (val: boolean) => {
+    if (isUpdating) return;
+
+    const previousVal = isPublic;
+    // Optimistic update
     setIsPublic(val);
-    updateProfile({ isPublic: val });
+    
     if (user?.id && !user.id.startsWith('local_')) {
+      setIsUpdating(true);
       try {
         await updateProfileVisibility(user.id, val);
-      } catch (err) {
-        console.error('Failed to update visibility:', err);
+        updateProfile({ isPublic: val });
+      } catch (err: any) {
+        // Rollback
+        setIsPublic(previousVal);
+        Alert.alert('Update Failed', err.message || 'Could not update privacy settings.');
+      } finally {
+        setIsUpdating(false);
       }
+    } else {
+      updateProfile({ isPublic: val });
     }
   };
 
   const handleClearData = () => {
     Alert.alert(
       'Clear Personality Data',
-      'This will permanently delete your OCEAN scores, Z-scores, and archetype. Your posts will remain. This cannot be undone.',
+      'This will permanently delete your scores and archetype from our servers. Your account and posts will remain. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Clear Data',
           style: 'destructive',
-          onPress: () => {
-            updateProfile({
-              scores: undefined,
-              zScores: undefined,
-              primaryArchetype: undefined,
-              secondaryArchetype: undefined,
-              phase: 'none',
-            });
-            router.back();
+          onPress: async () => {
+            if (user?.id && !user.id.startsWith('local_')) {
+              try {
+                await clearProfileScores(user.id);
+                resetAssessment();
+                Alert.alert('Success', 'Your personality data has been cleared.');
+              } catch (err: any) {
+                Alert.alert('Error', err.message || 'Failed to clear data from server.');
+              }
+            } else {
+              resetAssessment();
+              router.back();
+            }
           },
         },
       ]
@@ -84,19 +108,34 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'All your data — profile, posts, and personality results — will be permanently deleted. This meets GDPR right-to-erasure requirements.',
+      'All your data — profile, posts, and personality results — will be permanently deleted from our servers. This action is irreversible.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete Everything',
           style: 'destructive',
-          onPress: () => {
-            setUser(null);
-            router.replace('/');
+          onPress: async () => {
+            if (user?.id && !user.id.startsWith('local_')) {
+              try {
+                await deleteUserAccount(user.id);
+                setUser(null);
+                router.replace('/');
+              } catch (err: any) {
+                Alert.alert('Error', err.message || 'Failed to delete account.');
+              }
+            } else {
+              setUser(null);
+              router.replace('/');
+            }
           },
         },
       ]
     );
+  };
+
+  const handleRetake = () => {
+    resetAssessment();
+    router.push('/onboarding/phase1');
   };
 
   return (
@@ -128,12 +167,17 @@ export default function SettingsScreen() {
                 Others can see your archetype and scores
               </Text>
             </View>
-            <Switch
-              value={isPublic}
-              onValueChange={handleTogglePublic}
-              trackColor={{ false: Colors.line, true: Colors.accent }}
-              thumbColor={Colors.white}
-            />
+            {isUpdating ? (
+              <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: 8 }} />
+            ) : (
+              <Switch
+                value={isPublic}
+                onValueChange={handleTogglePublic}
+                trackColor={{ false: Colors.line, true: Colors.accent }}
+                thumbColor={Colors.white}
+                disabled={isUpdating}
+              />
+            )}
           </View>
 
         </View>
@@ -144,30 +188,27 @@ export default function SettingsScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              Your assessment uses the IPIP Big Five (public domain), not MBTI.
+              Your assessment uses the IPIP Big Five (public domain).
               Results are an exploratory tool, not a clinical diagnosis.
             </Text>
           </View>
 
           <RowItem
-            label="Retake Phase 1"
-            value="15 questions"
-            onPress={() => router.push('/onboarding/phase1')}
+            label="Retake Assessment"
+            value="Start over"
+            onPress={handleRetake}
           />
-          {user?.phase === 'phase2' ? (
-            <RowItem label="Phase 2 complete" value="Full precision" />
-          ) : (
-            <RowItem
-              label="Complete Phase 2"
-              value="35 questions"
-              onPress={() => router.push('/onboarding/phase2')}
-            />
-          )}
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Current Status</Text>
+            <Text style={styles.rowValue}>
+              {user?.phase === 'phase2' ? 'Full precision' : user?.phase === 'phase1' ? 'Phase 1 complete' : 'Not started'}
+            </Text>
+          </View>
         </View>
 
         {/* Legal / GDPR */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>DATA & GDPR</Text>
+          <Text style={styles.sectionLabel}>DATA & PRIVACY</Text>
 
           <RowItem
             label="Clear personality data"
@@ -185,7 +226,7 @@ export default function SettingsScreen() {
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>
             ARCHETYPE v1.0 · IPIP Big Five · Public Domain{'\n'}
-            Not a clinical diagnostic tool
+            Secure & Privacy Focused
           </Text>
         </View>
       </ScrollView>

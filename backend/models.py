@@ -52,6 +52,20 @@ class PersonalityProfile(Base):
 
     user = relationship("User", back_populates="profile")
 
+    def to_ocean_dict(self) -> dict:
+        """Convert profile scores to {O, C, E, A, N} dict."""
+        return {
+            "O": self.o_score, "C": self.c_score, "E": self.e_score,
+            "A": self.a_score, "N": self.n_score,
+        }
+
+    def to_z_dict(self) -> dict:
+        """Convert profile z-scores to {O, C, E, A, N} dict."""
+        return {
+            "O": self.z_o, "C": self.z_c, "E": self.z_e,
+            "A": self.z_a, "N": self.z_n,
+        }
+
 
 class Topic(Base):
     __tablename__ = 'topics'
@@ -160,6 +174,9 @@ class ArenaPost(Base):
 
 class ArenaVote(Base):
     __tablename__ = 'arena_votes'
+    __table_args__ = (
+        Index('ix_arena_votes_arena_voter', 'arena_id', 'voter_id', unique=True),
+    )
 
     id = Column(String(36), primary_key=True, index=True)
     arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)

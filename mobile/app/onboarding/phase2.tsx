@@ -1,32 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
   FadeIn,
   FadeOut,
-  SlideInRight,
-  SlideOutLeft,
 } from 'react-native-reanimated';
-import { Colors, T, S } from '../../constants/theme';
+import { Colors, T, S, Fonts, DIM_LABELS, DIM_COLORS } from '../../constants/theme';
 import LikertCircle from '../../components/ui/LikertCircle';
 import QuizBackground from '../../components/ui/QuizBackground';
 import ProgressBar from '../../components/ui/ProgressBar';
+import PressableScale from '../../components/ui/PressableScale';
 import { PHASE2_QUESTIONS, scoreAnswers, ALL_QUESTIONS } from '../../lib/questions';
 import { useUser } from '../../stores/userStore';
 import { submitTest } from '../../lib/api';
 import { useQuizProgress } from '../../hooks/useQuizProgress';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const LIKERT_LABELS = [
   { value: 1, label: 'Strongly\nDisagree' },
@@ -60,17 +54,30 @@ const INTERSTITIALS = [
   },
 ];
 
+// 4 visual layouts that cycle to break monotony
+type Layout = 'default' | 'centered' | 'big-number' | 'minimal';
+function layoutForIndex(idx: number): Layout {
+  const cycle = idx % 7;
+  if (cycle === 2) return 'centered';
+  if (cycle === 4) return 'big-number';
+  if (cycle === 6) return 'minimal';
+  return 'default';
+}
+
 export default function Phase2Screen() {
   const router = useRouter();
   const { user, updateProfile } = useUser();
   const { idx: currentIndex, answers, saveProgress, clearProgress, isLoaded } = useQuizProgress('phase2');
-  
+
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [interstitialData, setInterstitialData] = useState(INTERSTITIALS[0]);
+  const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   const total = PHASE2_QUESTIONS.length;
   const question = PHASE2_QUESTIONS[currentIndex] || PHASE2_QUESTIONS[0];
+  const layout = layoutForIndex(currentIndex);
+  const dimColor = DIM_COLORS[question.dimension] ?? Colors.accent;
 
   if (!isLoaded) {
     return (
@@ -82,8 +89,11 @@ export default function Phase2Screen() {
 
   const handleAnswer = async (value: number) => {
     if (loading) return;
+    setSelected(value);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     const newAnswers = { ...answers, [question.id]: value };
-    
+
     // Check for interstitial
     const interstitial = INTERSTITIALS.find(
       (i) => i.after === currentIndex + 1
@@ -91,11 +101,17 @@ export default function Phase2Screen() {
 
     if (currentIndex < total - 1) {
       if (interstitial) {
-        saveProgress(currentIndex, newAnswers); // Save before interstitial, but don't advance index yet
-        setInterstitialData(interstitial);
-        setShowInterstitial(true);
+        setTimeout(() => {
+          setSelected(null);
+          saveProgress(currentIndex, newAnswers);
+          setInterstitialData(interstitial);
+          setShowInterstitial(true);
+        }, 160);
       } else {
-        saveProgress(currentIndex + 1, newAnswers);
+        setTimeout(() => {
+          setSelected(null);
+          saveProgress(currentIndex + 1, newAnswers);
+        }, 160);
       }
     } else {
       setLoading(true);
@@ -103,7 +119,7 @@ export default function Phase2Screen() {
         // Phase 2 complete — combine with Phase 1 answers for full scoring
         const phase1Answers = user?.rawAnswers ?? {};
         const combinedAnswers = { ...phase1Answers, ...newAnswers };
-        
+
         if (user?.id && !user.id.startsWith('local_')) {
           const res = await submitTest(user.id, combinedAnswers, 'ipip-50-v1');
           updateProfile({
@@ -149,20 +165,19 @@ export default function Phase2Screen() {
   if (showInterstitial) {
     return (
       <View style={styles.interstitialContainer}>
-        <Animated.View 
-          entering={FadeIn.duration(600)} 
+        <Animated.View
+          entering={FadeIn.duration(600)}
           style={styles.interstitialContent}
         >
           <Text style={styles.interstitialTitle}>{interstitialData.title}</Text>
           <Text style={styles.interstitialBody}>{interstitialData.body}</Text>
         </Animated.View>
-        <TouchableOpacity
+        <PressableScale
           style={styles.continueBtn}
           onPress={dismissInterstitial}
-          activeOpacity={0.8}
         >
           <Text style={styles.continueBtnText}>CONTINUE</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     );
   }
@@ -177,22 +192,58 @@ export default function Phase2Screen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.phaseLabel}>PHASE 2 — DEEP UNLOCK</Text>
+        <Text style={[styles.phaseLabel, { color: dimColor }]}>
+          {DIM_LABELS[question.dimension]}
+        </Text>
         <Text style={styles.counter}>
-          {currentIndex + 1} / {total}
+          {String(currentIndex + 1).padStart(2, '0')} /{' '}
+          {String(total).padStart(2, '0')}
         </Text>
       </View>
 
-      {/* Question card */}
+      {/* Question card — calm crossfade with layout variation */}
       <Animated.View
         key={question.id}
-        entering={SlideInRight.duration(300)}
-        exiting={SlideOutLeft.duration(300)}
-        style={styles.card}
+        entering={FadeIn.duration(280)}
+        exiting={FadeOut.duration(180)}
+        style={[
+          styles.card,
+          layout === 'centered' && styles.cardCentered,
+        ]}
       >
-        <Text style={styles.dimensionTag}>{question.dimension}</Text>
-        <Text style={styles.questionText}>{question.text}</Text>
-        <Text style={styles.questionTextZh}>{question.textZh}</Text>
+        {/* Big-number layout: show large question index */}
+        {layout === 'big-number' && (
+          <Text style={[styles.bigNumber, { color: dimColor + '12' }]}>
+            {String(currentIndex + 1).padStart(2, '0')}
+          </Text>
+        )}
+
+        {/* Default layout: colored accent bar */}
+        {layout === 'default' && (
+          <View style={[styles.accentBar, { backgroundColor: dimColor }]} />
+        )}
+
+        {/* Minimal layout: just a thin line */}
+        {layout === 'minimal' && (
+          <View style={styles.minimalLine} />
+        )}
+
+        <Text
+          style={[
+            styles.questionText,
+            layout === 'centered' && styles.questionTextCentered,
+          ]}
+        >
+          {question.text}
+        </Text>
+        <Text
+          style={[
+            styles.questionTextZh,
+            layout === 'centered' && styles.questionTextZhCentered,
+          ]}
+        >
+          {question.textZh}
+        </Text>
       </Animated.View>
 
       {/* Likert scale */}
@@ -209,12 +260,27 @@ export default function Phase2Screen() {
               value={value}
               label={label}
               size={12 + value * 6}
-              isActive={answers[question.id] === value}
+              isActive={selected === value}
               onPress={() => handleAnswer(value)}
             />
           ))
         )}
       </View>
+
+      {/* Polarity labels */}
+      {!loading && (
+        <View style={styles.polarRow}>
+          <Text style={styles.polarLabel}>DISAGREE</Text>
+          <Text style={styles.polarLabel}>AGREE</Text>
+        </View>
+      )}
+
+      {/* Bottom hint */}
+      <Text style={styles.hint}>
+        {loading
+          ? 'Finalizing your archetype...'
+          : 'Phase 2 · unlocking your full personality map'}
+      </Text>
     </View>
   );
 }
@@ -223,84 +289,109 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.white,
-    paddingTop: 60,
     paddingHorizontal: S[12],
     justifyContent: 'center',
+    paddingBottom: S[12],
   },
   header: {
     position: 'absolute',
-    top: 60,
+    top: 56,
     left: S[12],
     right: S[12],
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   phaseLabel: {
     fontSize: T.xs,
-    color: Colors.accent,
-    letterSpacing: 2,
     fontWeight: '700',
+    letterSpacing: 2,
   },
   counter: {
     fontSize: T.xs,
     color: Colors.t3,
-    letterSpacing: 2,
+    fontFamily: Fonts?.mono,
+    letterSpacing: 1,
     fontWeight: '600',
   },
+
+  // Question card
   card: {
     marginBottom: S[20],
+    position: 'relative',
   },
-  dimensionTag: {
-    fontSize: T.xs,
-    color: Colors.accent,
-    letterSpacing: 3,
-    fontWeight: '700',
-    marginBottom: S[8],
+  cardCentered: {
+    alignItems: 'center',
+  },
+  accentBar: {
+    width: 24,
+    height: 2,
+    borderRadius: 1,
+    marginBottom: S[6],
+  },
+  minimalLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: Colors.line,
+    marginBottom: S[6],
+  },
+  bigNumber: {
+    fontSize: 120,
+    fontWeight: '100',
+    position: 'absolute',
+    top: -50,
+    right: -10,
+    lineHeight: 120,
   },
   questionText: {
     fontSize: T.xxl,
     fontWeight: '200',
     color: Colors.black,
-    lineHeight: 36,
+    lineHeight: 42,
+    letterSpacing: -0.5,
     marginBottom: S[4],
   },
+  questionTextCentered: {
+    textAlign: 'center',
+  },
   questionTextZh: {
-    fontSize: T.md,
-    color: Colors.t2,
+    fontSize: T.base,
     fontWeight: '300',
+    color: Colors.t2,
     lineHeight: 22,
   },
+  questionTextZhCentered: {
+    textAlign: 'center',
+  },
+
+  // Likert
   likertContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    paddingHorizontal: S[4],
-    marginBottom: S[16],
+    paddingHorizontal: S[2],
+    marginBottom: S[4],
   },
-  likertBtn: {
-    alignItems: 'center',
-    gap: S[4],
-    padding: S[4],
+  polarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: S[2],
+    marginTop: S[2],
+    marginBottom: S[8],
   },
-  likertDot: {
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: Colors.line,
-    backgroundColor: Colors.white,
+  polarLabel: {
+    fontSize: T.xs,
+    color: Colors.t3,
+    letterSpacing: 1.5,
+    fontWeight: '600',
   },
-  likertDotSelected: {
-    borderColor: Colors.accent,
-    backgroundColor: Colors.accentDim,
-  },
-  likertLabel: {
-    fontSize: 9,
+  hint: {
+    fontSize: T.xs,
     color: Colors.t3,
     textAlign: 'center',
-    fontWeight: '500',
+    letterSpacing: 0.5,
   },
-  likertLabelSelected: {
-    color: Colors.accent,
-  },
+
   // Interstitial styles
   interstitialContainer: {
     flex: 1,

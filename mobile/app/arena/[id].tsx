@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Colors, S, T, R, Fonts } from '../../constants/theme';
+import { Colors, S, T, R, Fonts, DIM_COLORS } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import {
   getArena,
@@ -24,15 +24,6 @@ import {
 } from '../../lib/api';
 import type { Arena, ArenaPost } from '../../lib/arenas';
 import PressableScale from '../../components/ui/PressableScale';
-
-// Dimension colors for the split
-const DIM_COLORS: Record<string, string> = {
-  O: '#AF52DE',
-  C: '#30B0C7',
-  E: '#FF3B30',
-  A: '#5AC8FA',
-  N: '#FF9500',
-};
 
 export default function ArenaScreen() {
   const { id: arenaId } = useLocalSearchParams<{ id: string }>();

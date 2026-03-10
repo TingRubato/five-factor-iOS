@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors, S, T, R, Shadows } from '../../constants/theme';
+import { Colors, S, T, R, Shadows, DIM_COLORS } from '../../constants/theme';
 import { ARCHETYPES } from '../../lib/archetypes';
 import { useUser } from '../../stores/userStore';
 import { getFeed, FeedItem, getArenas } from '../../lib/api';
@@ -18,10 +18,6 @@ import type { Arena } from '../../lib/arenas';
 import PressableScale from '../../components/ui/PressableScale';
 
 type FeedMode = 'default' | 'similar' | 'opposing';
-
-const DIM_COLORS: Record<string, string> = {
-  O: '#AF52DE', C: '#30B0C7', E: '#FF3B30', A: '#5AC8FA', N: '#FF9500',
-};
 
 const MODES: { key: FeedMode; label: string; desc: string }[] = [
   { key: 'default', label: 'Discover', desc: 'Quality + personality blend' },
@@ -135,6 +131,16 @@ export default function FeedScreen() {
     return () => { mounted = false; };
   }, [user?.id, mode]);
 
+  const renderFeedItem = useCallback(
+    ({ item }: { item: FeedItem }) => (
+      <PostCard
+        item={item}
+        onPress={() => router.push(`/user/${item.author_id}`)}
+      />
+    ),
+    [router],
+  );
+
   const renderEmptyState = () => {
     if (loading) {
       return (
@@ -246,12 +252,7 @@ export default function FeedScreen() {
           ) : null
         }
         ListEmptyComponent={renderEmptyState}
-        renderItem={({ item }) => (
-          <PostCard
-            item={item}
-            onPress={() => router.push(`/user/${item.author_id}`)}
-          />
-        )}
+        renderItem={renderFeedItem}
         contentContainerStyle={styles.feedList}
         showsVerticalScrollIndicator={false}
       />

@@ -2,7 +2,7 @@
 Arena routes — debate listing, posting, voting.
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
@@ -42,8 +42,9 @@ def _get_arena_side_counts(db: Session, arena_ids: list[str]) -> dict[str, tuple
 
 
 @router.get("")
-def list_arenas(status_filter: Optional[str] = None, db: Session = Depends(get_db)):
+def list_arenas(response: Response, status_filter: Optional[str] = None, db: Session = Depends(get_db)):
     """List arenas, optionally filtered by status (2 queries total)."""
+    response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=120"
     arenas = arena_service.get_arenas(db, status=status_filter)
     counts = _get_arena_side_counts(db, [a.id for a in arenas])
     return [
@@ -97,14 +98,17 @@ def get_arena(arena_id: str, db: Session = Depends(get_db)):
 
 @router.get("/{arena_id}/posts")
 def get_arena_posts(
-    arena_id: str, side: Optional[int] = None, db: Session = Depends(get_db)
+    arena_id: str, side: Optional[int] = None,
+    limit: int = 50, offset: int = 0,
+    db: Session = Depends(get_db),
+    _auth: models.User = Depends(get_current_user),
 ):
     """Get posts for an arena, optionally filtered by side."""
     arena = arena_service.get_arena(db, arena_id)
     if not arena:
         raise HTTPException(status_code=404, detail="Arena not found")
 
-    posts = arena_service.get_arena_posts(db, arena_id, side=side)
+    posts = arena_service.get_arena_posts(db, arena_id, side=side, limit=min(limit, 100), offset=max(offset, 0))
     return [
         {
             "id": p.id,

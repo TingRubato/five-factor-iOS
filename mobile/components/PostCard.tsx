@@ -34,7 +34,6 @@ export default function PostCard({
 }: PostCardProps) {
   const router = useRouter();
   const scale = useSharedValue(1);
-  const shadowOpacity = useSharedValue(0.04);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -44,12 +43,10 @@ export default function PostCard({
     <Pressable
       onPressIn={() => {
         scale.value = withSpring(0.975, { damping: 15, stiffness: 400 });
-        shadowOpacity.value = withSpring(0.01);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }}
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 300 });
-        shadowOpacity.value = withSpring(0.04);
       }}
       onPress={() => {
         // Navigate to post detail or author profile

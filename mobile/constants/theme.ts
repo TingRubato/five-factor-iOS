@@ -80,6 +80,23 @@ export const R = {
   full: 999,
 };
 
+// ── Big Five Dimension Constants ──────────────────────────────
+export const DIM_COLORS: Record<string, string> = {
+  O: '#AF52DE',
+  C: '#30B0C7',
+  E: '#FF3B30',
+  A: '#5AC8FA',
+  N: '#FF9500',
+};
+
+export const DIM_LABELS: Record<string, string> = {
+  O: 'OPENNESS',
+  C: 'CONSCIENTIOUSNESS',
+  E: 'EXTRAVERSION',
+  A: 'AGREEABLENESS',
+  N: 'NEUROTICISM',
+};
+
 // ── Shadows ───────────────────────────────────────────────────
 export const Shadows = {
   none: {},

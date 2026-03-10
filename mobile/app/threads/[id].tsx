@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -12,11 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { 
-  FadeIn, 
-  FadeInDown,
-} from 'react-native-reanimated';
 import { Colors, S, T, R, Shadows, Fonts } from '../../constants/theme';
 
 export default function ThreadScreen() {
@@ -27,7 +23,7 @@ export default function ThreadScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <header style={styles.header}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
@@ -44,7 +40,7 @@ export default function ThreadScreen() {
             </View>
           </View>
         </View>
-      </header>
+      </View>
 
       {/* Status Bar */}
       <View style={styles.statusBar}>
@@ -75,7 +71,7 @@ export default function ThreadScreen() {
           </View>
           <View style={styles.bubbleLeft}>
             <Text style={styles.msgText}>
-              The current architecture is stable, but we're seeing diminishing returns in node bridging. How can we trigger a shift?
+              The current architecture is stable, but we&apos;re seeing diminishing returns in node bridging. How can we trigger a shift?
             </Text>
           </View>
           <Text style={styles.time}>10:42 AM</Text>
@@ -91,7 +87,7 @@ export default function ThreadScreen() {
           </View>
           <View style={styles.bubbleRight}>
             <Text style={[styles.msgText, { color: Colors.white }]}>
-              We need to introduce a high-entropy node to disrupt the existing cluster. I'm looking at the Bridge Coefficient data now.
+              We need to introduce a high-entropy node to disrupt the existing cluster. I&apos;m looking at the Bridge Coefficient data now.
             </Text>
           </View>
           <Text style={styles.time}>10:45 AM</Text>

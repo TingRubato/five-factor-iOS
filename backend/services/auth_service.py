@@ -3,9 +3,9 @@ Auth service — social login verification and guest migration.
 Supports Apple Sign In, Google Sign In, and Phone OTP.
 """
 import uuid
-import random
+import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -79,7 +79,7 @@ OTP_TTL_MINUTES = 5
 
 def _cleanup_expired_otps() -> None:
     """Remove expired OTP entries to prevent memory growth."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     expired = [phone for phone, (_, exp) in _otp_store.items() if now > exp]
     for phone in expired:
         del _otp_store[phone]
@@ -88,8 +88,8 @@ def _cleanup_expired_otps() -> None:
 def generate_otp(phone: str) -> str:
     """Generate and store a 6-digit OTP for the given phone number."""
     _cleanup_expired_otps()
-    code = "".join(random.choices(string.digits, k=6))
-    _otp_store[phone] = (code, datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES))
+    code = "".join(secrets.choice(string.digits) for _ in range(6))
+    _otp_store[phone] = (code, datetime.now(timezone.utc) + timedelta(minutes=OTP_TTL_MINUTES))
     # In production: send via SMS provider (Twilio, etc.)
     return code
 
@@ -100,7 +100,7 @@ def verify_otp(phone: str, code: str) -> bool:
     if not stored:
         return False
     stored_code, expires_at = stored
-    if datetime.utcnow() > expires_at:
+    if datetime.now(timezone.utc) > expires_at:
         del _otp_store[phone]
         return False
     if stored_code != code:

@@ -56,19 +56,12 @@ def rank_feed(
     else:
         alpha, beta, gamma = 0.6, 0.2, 0.2  # fallback to default
 
-    if seed is not None:
-        random.seed(seed)
+    rng = random.Random(seed) if seed is not None else random.Random()
 
     ranked = []
 
     # Prepare user score dict once
-    user_scores = {
-        "O": user_profile.o_score,
-        "C": user_profile.c_score,
-        "E": user_profile.e_score,
-        "A": user_profile.a_score,
-        "N": user_profile.n_score,
-    }
+    user_scores = user_profile.to_ocean_dict()
 
     for post in posts:
         # Base quality score from upvotes
@@ -96,7 +89,7 @@ def rank_feed(
         similarity = 1.0 / (1.0 + (dist / 100.0))
 
         # Serendipity term (deterministic when seed is set)
-        serendipity = random.random()
+        serendipity = rng.random()
 
         rank_score = (alpha * base_relevance) + \
             (beta * similarity) + (gamma * serendipity)

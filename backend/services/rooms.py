@@ -7,7 +7,10 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from sqlalchemy.exc import IntegrityError
+
 from backend import models
+from backend.services.sanitize import sanitize_text
 
 # ── Seed Data ─────────────────────────────────────────────────
 
@@ -102,8 +105,8 @@ def create_room_post(
         id=str(uuid.uuid4()),
         author_id=user_id,
         room_id=room_id,
-        title=title,
-        body=body,
+        title=sanitize_text(title, max_length=200),
+        body=sanitize_text(body, max_length=5000),
         snapshot_archetype=profile.primary_archetype if profile else None,
         snapshot_o=profile.o_score if profile else None,
         snapshot_c=profile.c_score if profile else None,
@@ -141,7 +144,14 @@ def join_room(
         role=role,
     )
     db.add(membership)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return db.query(models.RoomMembership).filter(
+            models.RoomMembership.room_id == room_id,
+            models.RoomMembership.user_id == user_id,
+        ).first()
     db.refresh(membership)
     return membership
 
@@ -175,9 +185,6 @@ def auto_assign_rooms(db: Session, user_id: str, scores: dict) -> None:
     - Lowest dimension → "The Shadow Side" as "shadow"
     - Always join "The Commons"
     """
-    # Ensure rooms exist
-    seed_rooms(db)
-
     dims = ["O", "C", "E", "A", "N"]
     sorted_dims = sorted(dims, key=lambda d: scores.get(d, 50), reverse=True)
     top_dim = sorted_dims[0]

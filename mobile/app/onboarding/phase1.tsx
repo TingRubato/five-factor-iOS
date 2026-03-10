@@ -1,19 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import Animated, {
-  SlideInRight,
-  SlideOutLeft,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
-import { Colors, S, T, R, Fonts } from '../../constants/theme';
+import { Colors, S, T, Fonts, DIM_LABELS, DIM_COLORS } from '../../constants/theme';
 import LikertCircle from '../../components/ui/LikertCircle';
 import QuizBackground from '../../components/ui/QuizBackground';
 import ProgressBar from '../../components/ui/ProgressBar';
@@ -24,13 +23,6 @@ import { useQuizProgress } from '../../hooks/useQuizProgress';
 
 const { width: W } = Dimensions.get('window');
 
-const DIM_LABELS: Record<string, string> = {
-  O: 'OPENNESS',
-  C: 'CONSCIENTIOUSNESS',
-  E: 'EXTRAVERSION',
-  A: 'AGREEABLENESS',
-  N: 'NEUROTICISM',
-};
 
 const OPTIONS = [
   { value: 1, shortLabel: 'SD', label: 'Strongly\nDisagree' },
@@ -39,6 +31,15 @@ const OPTIONS = [
   { value: 4, shortLabel: 'A',  label: 'Agree' },
   { value: 5, shortLabel: 'SA', label: 'Strongly\nAgree' },
 ];
+
+// 3 visual layouts that cycle to break monotony
+type Layout = 'default' | 'centered' | 'big-number';
+function layoutForIndex(idx: number): Layout {
+  const cycle = idx % 5;
+  if (cycle === 2) return 'centered';
+  if (cycle === 4) return 'big-number';
+  return 'default';
+}
 
 export default function Phase1Screen() {
   const router = useRouter();
@@ -50,6 +51,8 @@ export default function Phase1Screen() {
 
   const total = PHASE1_QUESTIONS.length;
   const q = PHASE1_QUESTIONS[idx] || PHASE1_QUESTIONS[0];
+  const layout = layoutForIndex(idx);
+  const dimColor = DIM_COLORS[q.dimension] ?? Colors.accent;
 
   if (!isLoaded) {
     return (
@@ -112,25 +115,56 @@ export default function Phase1Screen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Text style={styles.dimLabel}>{DIM_LABELS[q.dimension]}</Text>
+        <Text style={[styles.dimLabel, { color: dimColor }]}>
+          {DIM_LABELS[q.dimension]}
+        </Text>
         <Text style={styles.counter}>
           {String(idx + 1).padStart(2, '0')} /{' '}
           {String(total).padStart(2, '0')}
         </Text>
       </View>
 
-      {/* Question — directional slide transition */}
+      {/* Question — calm crossfade with layout variation */}
       <Animated.View
         key={q.id}
-        entering={SlideInRight.duration(300).springify().damping(20)}
-        exiting={SlideOutLeft.duration(250)}
-        style={styles.questionArea}
+        entering={FadeIn.duration(280)}
+        exiting={FadeOut.duration(180)}
+        style={[
+          styles.questionArea,
+          layout === 'centered' && styles.questionAreaCentered,
+        ]}
       >
-        <Text style={styles.questionText}>{q.text}</Text>
-        <Text style={styles.questionTextZh}>{q.textZh}</Text>
+        {/* Big-number layout: show large question index */}
+        {layout === 'big-number' && (
+          <Text style={[styles.bigNumber, { color: dimColor + '12' }]}>
+            {String(idx + 1).padStart(2, '0')}
+          </Text>
+        )}
+
+        {/* Dimension accent bar (default layout only) */}
+        {layout === 'default' && (
+          <View style={[styles.accentBar, { backgroundColor: dimColor }]} />
+        )}
+
+        <Text
+          style={[
+            styles.questionText,
+            layout === 'centered' && styles.questionTextCentered,
+          ]}
+        >
+          {q.text}
+        </Text>
+        <Text
+          style={[
+            styles.questionTextZh,
+            layout === 'centered' && styles.questionTextZhCentered,
+          ]}
+        >
+          {q.textZh}
+        </Text>
       </Animated.View>
 
-      {/* Likert circles — visual size gradient */}
+      {/* Likert circles */}
       <View style={styles.likertRow}>
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -138,7 +172,7 @@ export default function Phase1Screen() {
           </View>
         ) : (
           OPTIONS.map(({ value, label }) => {
-            const size = 20 + value * 8; // 28 → 60px
+            const size = 20 + value * 8;
             const isActive = selected === value;
             return (
               <LikertCircle
@@ -164,7 +198,9 @@ export default function Phase1Screen() {
 
       {/* Bottom hint */}
       <Text style={styles.hint}>
-        {loading ? 'Calculating your archetype...' : 'Tap a circle · honest answers give accurate results'}
+        {loading
+          ? 'Calculating your archetype...'
+          : 'Tap a circle · honest answers give accurate results'}
       </Text>
     </View>
   );
@@ -181,7 +217,8 @@ const styles = StyleSheet.create({
   topBar: {
     position: 'absolute',
     top: 56,
-    left: S[12], right: S[12],
+    left: S[12],
+    right: S[12],
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -189,7 +226,6 @@ const styles = StyleSheet.create({
   dimLabel: {
     fontSize: T.xs,
     fontWeight: T.bold,
-    color: Colors.accent,
     letterSpacing: 2,
   },
   counter: {
@@ -200,9 +236,27 @@ const styles = StyleSheet.create({
     fontWeight: T.semibold,
   },
 
-  // Question
+  // Question — default (left-aligned)
   questionArea: {
     marginBottom: S[20],
+    position: 'relative',
+  },
+  questionAreaCentered: {
+    alignItems: 'center',
+  },
+  accentBar: {
+    width: 24,
+    height: 2,
+    borderRadius: 1,
+    marginBottom: S[6],
+  },
+  bigNumber: {
+    fontSize: 120,
+    fontWeight: '100',
+    position: 'absolute',
+    top: -50,
+    right: -10,
+    lineHeight: 120,
   },
   questionText: {
     fontSize: T.xxl,
@@ -212,11 +266,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: S[4],
   },
+  questionTextCentered: {
+    textAlign: 'center',
+  },
   questionTextZh: {
     fontSize: T.base,
     fontWeight: T.light,
     color: Colors.t2,
     lineHeight: 22,
+  },
+  questionTextZhCentered: {
+    textAlign: 'center',
   },
 
   // Likert
@@ -226,22 +286,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: S[2],
     marginBottom: S[4],
-  },
-  optionCol: {
-    alignItems: 'center',
-    gap: S[4],
-    paddingVertical: S[4],
-    paddingHorizontal: S[2],
-  },
-  circle: {
-    borderWidth: 1.5,
-  },
-  circleLabel: {
-    fontSize: T.micro,
-    color: Colors.t3,
-    textAlign: 'center',
-    fontWeight: T.semibold,
-    letterSpacing: 0.3,
   },
 
   polarRow: {
