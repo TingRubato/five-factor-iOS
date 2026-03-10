@@ -25,7 +25,14 @@ export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user: currentUser } = useUser();
-  const [profile, setProfile] = useState<any>(null);
+  interface UserProfile {
+    user_id: string;
+    username: string;
+    primary_archetype: string | null;
+    compatibility: number;
+    [key: string]: unknown;
+  }
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -214,7 +221,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.black,
     ...Shadows.brutalist,
   },
-  avatar: { width: '100%', height: '100%', grayscale: 1 } as any,
+  avatar: { width: '100%', height: '100%' },
   heroText: { flex: 1, paddingBottom: 4 },
   matchBadge: {
     backgroundColor: Colors.black,
@@ -255,7 +262,7 @@ const styles = StyleSheet.create({
   breakdownList: { gap: S[4] },
   breakdownRow: { gap: S[1] },
   breakdownMeta: { flexDirection: 'row', justifyContent: 'space-between' },
-  breakdownLabel: { fontSize: 11, fontWeight: '900', uppercase: true } as any,
+  breakdownLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   breakdownValue: { fontSize: 11, fontWeight: 'bold', fontFamily: Fonts?.mono },
   track: { height: 16, borderWidth: 2, borderColor: Colors.black, backgroundColor: '#F0F0F0' },
   fill: { height: '100%' },

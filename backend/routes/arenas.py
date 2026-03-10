@@ -3,25 +3,15 @@ Arena routes — debate listing, posting, voting.
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 
-from backend import models
+from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user
 from backend.services import arenas as arena_service
 
 router = APIRouter(prefix="/arenas", tags=["arenas"])
-
-
-class ArenaPostRequest(BaseModel):
-    body: str
-    force_side: Optional[int] = None  # 1 or 2, null = auto-assign
-
-
-class ArenaVoteRequest(BaseModel):
-    side: int  # 1 or 2
 
 
 def _get_arena_side_counts(db: Session, arena_ids: list[str]) -> dict[str, tuple[int, int]]:
@@ -126,7 +116,7 @@ def get_arena_posts(
 @router.post("/{arena_id}/posts", status_code=201)
 def create_arena_post(
     arena_id: str,
-    payload: ArenaPostRequest,
+    payload: schemas.ArenaPostRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -151,7 +141,7 @@ def create_arena_post(
 @router.post("/{arena_id}/vote")
 def vote_arena(
     arena_id: str,
-    payload: ArenaVoteRequest,
+    payload: schemas.ArenaVoteRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

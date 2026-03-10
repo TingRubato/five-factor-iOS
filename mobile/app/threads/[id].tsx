@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   msgRight: { alignSelf: 'flex-end', maxWidth: '85%', gap: 4 },
   
   senderInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  senderName: { fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' } as any,
+  senderName: { fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' },
   senderRole: { backgroundColor: '#E5E7EB', paddingHorizontal: 4, borderWidth: 1, borderColor: Colors.black },
   senderRoleText: { fontSize: 9, fontFamily: Fonts?.mono },
   
