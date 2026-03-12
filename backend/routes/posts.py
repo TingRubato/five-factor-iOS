@@ -1,19 +1,22 @@
 """Post creation routes."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services.sanitize import sanitize_text
 
 router = APIRouter(tags=["posts"])
 
 
 @router.post("/posts/", response_model=schemas.PostResponse, status_code=201)
+@limiter.limit("5/minute")
 def create_post(
+    request: Request,
     payload: schemas.CreatePostRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),

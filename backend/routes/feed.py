@@ -1,10 +1,11 @@
 """Feed ranking routes."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services import feed
 
 router = APIRouter(tags=["feed"])
@@ -20,7 +21,9 @@ def _verify_user_id(user_id: str, current_user: models.User = Depends(get_curren
 
 
 @router.get("/feed/", response_model=schemas.FeedPageResponse)
+@limiter.limit("30/minute")
 def get_feed(
+    request: Request,
     user_id: str,
     mode: str = "default",
     limit: int = 20,

@@ -2,13 +2,14 @@
 Arena routes — debate listing, posting, voting.
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services import arenas as arena_service
 
 router = APIRouter(prefix="/arenas", tags=["arenas"])
@@ -114,7 +115,9 @@ def get_arena_posts(
 
 
 @router.post("/{arena_id}/posts", status_code=201)
+@limiter.limit("5/minute")
 def create_arena_post(
+    request: Request,
     arena_id: str,
     payload: schemas.ArenaPostRequest,
     db: Session = Depends(get_db),
@@ -139,7 +142,9 @@ def create_arena_post(
 
 
 @router.post("/{arena_id}/vote")
+@limiter.limit("10/minute")
 def vote_arena(
+    request: Request,
     arena_id: str,
     payload: schemas.ArenaVoteRequest,
     db: Session = Depends(get_db),

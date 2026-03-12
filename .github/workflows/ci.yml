@@ -75,12 +75,12 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.11'
 
     - name: Audit Python dependencies
       run: |
         pip install pip-audit
-        pip-audit -r backend/requirements.txt || true
+        pip-audit -r backend/requirements.txt
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -89,7 +89,7 @@ jobs:
 
     - name: Audit npm dependencies
       working-directory: ./mobile
-      run: npm audit --audit-level=high || true
+      run: npm audit --audit-level=critical
 
   docker-build-check:
     runs-on: ubuntu-latest

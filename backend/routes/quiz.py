@@ -3,13 +3,14 @@ import json
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from typing import Dict
 
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services import scoring
 from backend.services import rooms as rooms_service
 
@@ -79,7 +80,9 @@ def get_quiz(version: str):
 
 
 @router.post("/test/submit/{user_id}", response_model=schemas.ProfileResponse)
+@limiter.limit("10/minute")
 def submit_test(
+    request: Request,
     user_id: str,
     payload: schemas.SubmitTestRequest,
     db: Session = Depends(get_db),

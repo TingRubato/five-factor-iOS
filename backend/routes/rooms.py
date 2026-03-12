@@ -1,12 +1,13 @@
 """
 Room routes — room listing, posts, membership.
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from backend import schemas, models
 from backend.database import get_db
 from backend.auth import get_current_user
+from backend.rate_limit import limiter
 from backend.services import rooms as rooms_service
 
 router = APIRouter(tags=["rooms"])
@@ -67,7 +68,9 @@ def get_room_posts(
 
 
 @router.post("/rooms/{room_id}/posts", response_model=schemas.PostResponse, status_code=201)
+@limiter.limit("5/minute")
 def create_room_post(
+    request: Request,
     room_id: str,
     payload: schemas.CreatePostRequest,
     db: Session = Depends(get_db),
@@ -84,7 +87,9 @@ def create_room_post(
 
 
 @router.post("/rooms/{room_id}/join")
+@limiter.limit("10/minute")
 def join_room(
+    request: Request,
     room_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),

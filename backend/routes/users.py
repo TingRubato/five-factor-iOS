@@ -1,18 +1,20 @@
 """User CRUD routes."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_current_user, get_password_hash
+from backend.rate_limit import limiter
 
 router = APIRouter(tags=["users"])
 
 
 @router.post("/users/", response_model=schemas.UserResponse, status_code=201)
-def create_user(payload: schemas.CreateUserRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def create_user(request: Request, payload: schemas.CreateUserRequest, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already registered")
     if db.query(models.User).filter(models.User.email == payload.email).first():
