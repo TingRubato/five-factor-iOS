@@ -19,15 +19,15 @@ class User(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     profile = relationship("PersonalityProfile",
-                           back_populates="user", uselist=False)
-    posts = relationship("Post", back_populates="author")
+                           back_populates="user", uselist=False, cascade="all, delete-orphan")
+    posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
 
 
 class PersonalityProfile(Base):
     __tablename__ = 'personality_profiles'
 
     id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), ForeignKey('users.id'), unique=True, index=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), unique=True, index=True)
 
     quiz_version = Column(String(50), nullable=False, default='ipip-15-v1')
     scoring_version = Column(String(50), nullable=False, default='v1')
@@ -100,8 +100,8 @@ class RoomMembership(Base):
     )
 
     id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), ForeignKey('users.id'), index=True)
-    room_id = Column(String(36), ForeignKey('rooms.id'), index=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    room_id = Column(String(36), ForeignKey('rooms.id', ondelete='CASCADE'), index=True)
     role = Column(String(20), nullable=False)  # "home" | "shadow" | "joined"
     joined_at = Column(DateTime, server_default=func.now())
 
@@ -113,9 +113,9 @@ class Post(Base):
     __tablename__ = 'posts'
 
     id = Column(String(36), primary_key=True, index=True)
-    author_id = Column(String(36), ForeignKey('users.id'), index=True)
-    topic_id = Column(String(36), ForeignKey('topics.id'), index=True, nullable=True)
-    room_id = Column(String(36), ForeignKey('rooms.id'), index=True, nullable=True)
+    author_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    topic_id = Column(String(36), ForeignKey('topics.id', ondelete='SET NULL'), index=True, nullable=True)
+    room_id = Column(String(36), ForeignKey('rooms.id', ondelete='SET NULL'), index=True, nullable=True)
     title = Column(String(200), nullable=False)
     body = Column(String(5000), nullable=False)
 
@@ -161,8 +161,8 @@ class ArenaPost(Base):
     )
 
     id = Column(String(36), primary_key=True, index=True)
-    arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)
-    user_id = Column(String(36), ForeignKey('users.id'), index=True)
+    arena_id = Column(String(36), ForeignKey('arenas.id', ondelete='CASCADE'), index=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True)
     side = Column(Integer)  # 1 or 2
     body = Column(Text, nullable=False)
     is_defector = Column(Boolean, default=False)
@@ -179,8 +179,8 @@ class ArenaVote(Base):
     )
 
     id = Column(String(36), primary_key=True, index=True)
-    arena_id = Column(String(36), ForeignKey('arenas.id'), index=True)
-    voter_id = Column(String(36), ForeignKey('users.id'), index=True)
+    arena_id = Column(String(36), ForeignKey('arenas.id', ondelete='CASCADE'), index=True)
+    voter_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True)
     voted_side = Column(Integer)  # 1 or 2
     created_at = Column(DateTime, server_default=func.now())
 
