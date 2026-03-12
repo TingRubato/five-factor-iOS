@@ -23,8 +23,7 @@ import {
   loginWithGoogle,
   sendPhoneOtp,
   verifyPhoneOtp,
-  createUser,
-  login,
+  createGuestSession,
   setAuthToken,
 } from '../lib/api';
 
@@ -116,17 +115,11 @@ export default function AuthScreen() {
     setLoading('skip');
     setError(null);
     try {
-      const guestId = Math.random().toString(36).substring(2, 8);
-      const guestName = `guest_${guestId}`;
-      const guestEmail = `${guestName}@temporary.archetype.app`;
-      const guestPass = `pass_${guestId}_${Math.random().toString(36).substring(2, 8)}`;
-
-      const newUser = await createUser(guestName, guestEmail, guestPass);
-      await login(guestName, guestPass);
+      const { user: guestUser } = await createGuestSession();
 
       setUser({
-        id: newUser.id,
-        username: newUser.username,
+        id: guestUser.id,
+        username: guestUser.username,
         isGuest: true,
         phase: 'none',
         isPublic: true,

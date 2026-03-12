@@ -201,6 +201,12 @@ export async function migrateGuest(
   return res.data;
 }
 
+export async function createGuestSession(): Promise<AuthResponse> {
+  const res = await client.post('/api/auth/guest');
+  if (res.data.token) await setAuthToken(res.data.token);
+  return res.data;
+}
+
 // ── Rooms ────────────────────────────────────────────────────
 
 export async function getRooms() {

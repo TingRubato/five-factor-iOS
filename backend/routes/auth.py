@@ -1,7 +1,8 @@
 """
-Auth routes — Apple Sign In, Google Sign In, Phone OTP, Guest Migration.
+Auth routes — Apple Sign In, Google Sign In, Phone OTP, Guest, Guest Migration.
 """
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -83,6 +84,27 @@ async def verify_phone_otp(request: Request, body: schemas.VerifyOtpRequest, db:
     return schemas.AuthResponse(
         token=token,
         user=schemas.UserResponse.model_validate(user),
+    )
+
+
+@router.post("/guest", response_model=schemas.AuthResponse)
+@limiter.limit("5/minute")
+def create_guest_session(request: Request, db: Session = Depends(get_db)):
+    """Create a guest account and return a JWT. No password required."""
+    from backend.auth import create_access_token
+    user = models.User(
+        id=str(uuid.uuid4()),
+        username=f"guest_{uuid.uuid4().hex[:8]}",
+        is_guest=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(data={"sub": user.id})
+    return schemas.AuthResponse(
+        token=token,
+        user=schemas.UserResponse.model_validate(user),
+        is_new=True,
     )
 
 
