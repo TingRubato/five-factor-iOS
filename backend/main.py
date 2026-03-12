@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, Request, status
@@ -12,7 +13,10 @@ from backend import models, database
 from backend import schemas
 from backend.auth import create_access_token, verify_password
 from backend.config import settings
+from backend.logging_config import setup_logging
 from backend.rate_limit import limiter
+
+logger = logging.getLogger(__name__)
 
 from backend.routes.auth import router as auth_router
 from backend.routes.rooms import router as rooms_router
@@ -26,12 +30,13 @@ from backend.routes.quiz import router as quiz_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from backend.routes.quiz import load_question_bank, _QUESTION_BANK
+    setup_logging("DEBUG" if settings.DEBUG else "INFO")
+    from backend.routes.quiz import load_question_bank
     try:
         load_question_bank()
-        print(f"Question bank loaded successfully.")
+        logger.info("Question bank loaded successfully")
     except Exception as e:
-        print(f"CRITICAL ERROR: Failed to load question_bank.json: {e}")
+        logger.critical("Failed to load question_bank.json: %s", e)
         raise SystemExit(1)
 
     # Seed rooms and initial arena at startup
