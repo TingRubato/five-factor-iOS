@@ -59,7 +59,7 @@ export default function CreateScreen() {
       if (selectedRoom) {
         await createRoomPost(selectedRoom, title.trim(), body.trim());
       } else {
-        await createPost(user!.id, title.trim(), body.trim(), topic ?? undefined);
+        await createPost(title.trim(), body.trim(), topic ?? undefined);
       }
     } catch (e) {
       console.warn('Post failed:', e);

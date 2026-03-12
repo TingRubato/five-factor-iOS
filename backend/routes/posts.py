@@ -21,14 +21,8 @@ def create_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if current_user.id != payload.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized for this user ID",
-        )
-
     profile = db.query(models.PersonalityProfile).filter(
-        models.PersonalityProfile.user_id == payload.user_id
+        models.PersonalityProfile.user_id == current_user.id
     ).first()
     if not profile:
         raise HTTPException(
@@ -37,7 +31,7 @@ def create_post(
 
     db_post = models.Post(
         id=str(uuid.uuid4()),
-        author_id=payload.user_id,
+        author_id=current_user.id,
         topic_id=payload.topic_id,
         title=sanitize_text(payload.title, max_length=200),
         body=sanitize_text(payload.body, max_length=5000),

@@ -55,11 +55,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(auth_router, prefix="/api")
 app.include_router(rooms_router, prefix="/api")
 app.include_router(arenas_router, prefix="/api")
-app.include_router(users_router)
-app.include_router(profiles_router)
-app.include_router(posts_router)
-app.include_router(feed_router)
-app.include_router(quiz_router)
+app.include_router(users_router, prefix="/api")
+app.include_router(profiles_router, prefix="/api")
+app.include_router(posts_router, prefix="/api")
+app.include_router(feed_router, prefix="/api")
+app.include_router(quiz_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

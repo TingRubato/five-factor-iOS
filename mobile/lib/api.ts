@@ -139,7 +139,7 @@ export async function bootstrapAuth() {
 // ── Auth / User ───────────────────────────────────────────────
 
 export async function createUser(username: string, email: string, password: string): Promise<UserResponse> {
-  const res = await client.post('/users/', { username, email, password });
+  const res = await client.post('/api/users/', { username, email, password });
   return res.data;
 }
 
@@ -270,7 +270,7 @@ export async function submitTest(
     stringKeyedAnswers[String(key)] = val;
   }
 
-  const res = await client.post(`/test/submit/${userId}`, {
+  const res = await client.post(`/api/test/submit/${userId}`, {
     answers: stringKeyedAnswers,
     version,
   });
@@ -280,36 +280,36 @@ export async function submitTest(
 // ── Profile ───────────────────────────────────────────────────
 
 export async function getProfile(userId: string): Promise<ProfileResponse> {
-  const res = await client.get(`/profile/${userId}`);
+  const res = await client.get(`/api/profile/${userId}`);
   return res.data;
 }
 
 export async function getUserProfile(targetUserId: string, myUserId: string): Promise<ProfileResponse> {
-  const res = await client.get(`/profile/${targetUserId}`, {
+  const res = await client.get(`/api/profile/${targetUserId}`, {
     params: { viewer_id: myUserId },
   });
   return res.data;
 }
 
 export async function updateProfileVisibility(userId: string, isPublic: boolean): Promise<ProfileResponse> {
-  const res = await client.patch(`/profile/${userId}`, {
+  const res = await client.patch(`/api/profile/${userId}`, {
     is_public: isPublic,
   });
   return res.data;
 }
 
 export async function clearProfileScores(userId: string): Promise<void> {
-  await client.delete(`/profile/${userId}/scores`);
+  await client.delete(`/api/profile/${userId}/scores`);
 }
 
 export async function deleteUserAccount(userId: string): Promise<void> {
-  await client.delete(`/users/${userId}`);
+  await client.delete(`/api/users/${userId}`);
 }
 
 // ── Quiz ──────────────────────────────────────────────────────
 
 export async function getQuiz(version: string): Promise<QuizData> {
-  const res = await client.get(`/quiz/version/${version}`);
+  const res = await client.get(`/api/quiz/version/${version}`);
   return res.data;
 }
 
@@ -321,7 +321,7 @@ export async function getFeed(
   limit: number = 20,
   offset: number = 0
 ): Promise<FeedPage> {
-  const res = await client.get('/feed/', {
+  const res = await client.get('/api/feed/', {
     params: { user_id: userId, mode, limit, offset },
   });
   return res.data;
@@ -330,13 +330,11 @@ export async function getFeed(
 // ── Posts ─────────────────────────────────────────────────────
 
 export async function createPost(
-  userId: string,
   title: string,
   body: string,
   topicId?: string
 ): Promise<PostResponse> {
-  const res = await client.post('/posts/', {
-    user_id: userId,
+  const res = await client.post('/api/posts/', {
     title,
     body,
     topic_id: topicId ?? null,

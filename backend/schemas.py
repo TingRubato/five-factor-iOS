@@ -71,7 +71,6 @@ class AuthResponse(BaseModel):
 
 
 class CreatePostRequest(BaseModel):
-    user_id: str
     title: str = Field(..., min_length=1, max_length=200)
     body: str = Field(..., min_length=1, max_length=5000)
     topic_id: Optional[str] = None

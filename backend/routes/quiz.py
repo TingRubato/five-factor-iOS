@@ -9,7 +9,7 @@ from typing import Dict
 
 from backend import models, schemas
 from backend.database import get_db
-from backend.auth import get_current_user
+from backend.auth import get_current_user, verify_owns_resource
 from backend.rate_limit import limiter
 from backend.services import scoring
 from backend.services import rooms as rooms_service
@@ -63,13 +63,6 @@ def _score_answers(answers: Dict[str, int], version: str) -> Dict[str, float]:
     return scores
 
 
-def _verify_user_id(user_id: str, current_user: models.User = Depends(get_current_user)):
-    if current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized for this user ID",
-        )
-    return current_user
 
 
 @router.get("/quiz/version/{version}")
@@ -86,7 +79,7 @@ def submit_test(
     user_id: str,
     payload: schemas.SubmitTestRequest,
     db: Session = Depends(get_db),
-    _auth: models.User = Depends(_verify_user_id),
+    _auth: models.User = Depends(verify_owns_resource),
 ):
     """Submit quiz answers. Recalculates Z-scores and archetype mapping."""
     user = db.query(models.User).filter(models.User.id == user_id).first()

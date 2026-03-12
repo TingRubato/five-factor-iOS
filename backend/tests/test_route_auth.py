@@ -11,17 +11,17 @@ def client():
 
 
 def test_feed_requires_auth(client):
-    resp = client.get("/feed/?user_id=fake")
+    resp = client.get("/api/feed/?user_id=fake")
     assert resp.status_code == 401
 
 
 def test_profile_requires_auth(client):
-    resp = client.get("/profile/fake-id")
+    resp = client.get("/api/profile/fake-id")
     assert resp.status_code == 401
 
 
 def test_create_post_requires_auth(client):
-    resp = client.post("/posts/", json={"user_id": "x", "title": "t", "body": "b"})
+    resp = client.post("/api/posts/", json={"title": "t", "body": "b"})
     assert resp.status_code == 401
 
 
@@ -47,6 +47,6 @@ def test_user_rooms_require_auth(client):
 
 def test_create_user_does_not_require_auth(client):
     """Public endpoint — should not return 401."""
-    resp = client.post("/users/", json={"username": "t", "email": "t@t.com", "password": "pw"})
+    resp = client.post("/api/users/", json={"username": "t", "email": "t@t.com", "password": "pw"})
     # May fail for other reasons (DB), but should NOT be 401
     assert resp.status_code != 401

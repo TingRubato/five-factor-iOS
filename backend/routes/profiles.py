@@ -5,19 +5,12 @@ from typing import Optional
 
 from backend import models, schemas
 from backend.database import get_db
-from backend.auth import get_current_user
+from backend.auth import get_current_user, verify_owns_resource
 from backend.services import psychometrics
 
 router = APIRouter(tags=["profiles"])
 
 
-def _verify_user_id(user_id: str, current_user: models.User = Depends(get_current_user)):
-    if current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized for this user ID",
-        )
-    return current_user
 
 
 @router.get("/profile/{user_id}", response_model=schemas.ProfileResponse)
@@ -80,7 +73,7 @@ def update_profile(
     user_id: str,
     payload: schemas.UpdateProfileRequest,
     db: Session = Depends(get_db),
-    _auth: models.User = Depends(_verify_user_id),
+    _auth: models.User = Depends(verify_owns_resource),
 ):
     profile = db.query(models.PersonalityProfile).filter(
         models.PersonalityProfile.user_id == user_id
@@ -111,7 +104,7 @@ def update_profile(
 def clear_profile_scores(
     user_id: str,
     db: Session = Depends(get_db),
-    _auth: models.User = Depends(_verify_user_id),
+    _auth: models.User = Depends(verify_owns_resource),
 ):
     profile = db.query(models.PersonalityProfile).filter(
         models.PersonalityProfile.user_id == user_id
