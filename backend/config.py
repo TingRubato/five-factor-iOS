@@ -37,6 +37,17 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+_KNOWN_INSECURE_KEYS = {"dev-secret-key-change-me", "changeme", "secret", ""}
+
+
+def _validate_secret_key(key: str) -> None:
+    """Reject known-insecure or too-short SECRET_KEYs at startup."""
+    if key in _KNOWN_INSECURE_KEYS:
+        raise SystemExit("FATAL: SECRET_KEY is a known insecure default")
+    if len(key) < 32:
+        raise SystemExit("FATAL: SECRET_KEY must be at least 32 characters")
+
+
 def get_settings():
     try:
         return Settings()
@@ -51,4 +62,9 @@ def get_settings():
             return Settings()
         raise SystemExit(f"FATAL: Cannot start without proper configuration: {e}")
 
+
 settings = get_settings()
+
+# Validate SECRET_KEY in non-test environments
+if os.environ.get("ENV") not in ("test",):
+    _validate_secret_key(settings.SECRET_KEY)

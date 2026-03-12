@@ -2,6 +2,7 @@
 Auth service — social login verification and guest migration.
 Supports Apple Sign In, Google Sign In, and Phone OTP.
 """
+import hmac
 import uuid
 import secrets
 import string
@@ -103,7 +104,7 @@ def verify_otp(phone: str, code: str) -> bool:
     if datetime.now(timezone.utc) > expires_at:
         del _otp_store[phone]
         return False
-    if stored_code != code:
+    if not hmac.compare_digest(stored_code, code):
         return False
     del _otp_store[phone]
     return True
