@@ -125,8 +125,8 @@ export default function AuthScreen() {
         isPublic: true,
       });
       router.replace('/onboarding/phase1');
-    } catch {
-      // Fallback to local-only mode
+    } catch (e) {
+      console.error('Guest session failed, falling back to local mode:', e);
       setUser({
         id: `local_${Date.now()}`,
         username: 'Guest',

@@ -17,6 +17,7 @@ import { Colors, S, T, R, Fonts, DIM_COLORS } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
 import { getRooms, getUserRooms, getArenas } from '../../lib/api';
+import { useToast } from '../../components/ui/Toast';
 import type { Arena } from '../../lib/arenas';
 import RoomCard from '../../components/RoomCard';
 import PressableScale from '../../components/ui/PressableScale';
@@ -45,6 +46,7 @@ interface UserRoom {
 export default function HubScreen() {
   const router = useRouter();
   const { user } = useUser();
+  const { showToast } = useToast();
   const archetype = getArchetypeByName(user?.primaryArchetype || 'Explorer Creator');
 
   const [rooms, setRooms] = useState<RoomData[]>([]);
@@ -63,8 +65,9 @@ export default function HubScreen() {
       setRooms(allRooms);
       setMyRooms(userRooms);
       setActiveArenas(arenas);
-    } catch {
-      // Silently fail — show empty state
+    } catch (e) {
+      console.error('Hub data load failed:', e);
+      showToast({ type: 'error', message: 'Failed to load community data.' });
     } finally {
       setLoading(false);
       setRefreshing(false);

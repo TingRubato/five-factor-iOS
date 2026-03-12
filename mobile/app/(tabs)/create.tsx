@@ -16,6 +16,7 @@ import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName } from '../../lib/archetypes';
 import { createPost, createRoomPost, getUserRooms } from '../../lib/api';
+import { useToast } from '../../components/ui/Toast';
 
 const TOPICS = [
   'MUSIC · ENGINEERING',
@@ -30,6 +31,7 @@ const TOPICS = [
 export default function CreateScreen() {
   const router = useRouter();
   const { user } = useUser();
+  const { showToast } = useToast();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [topic, setTopic] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export default function CreateScreen() {
     if (user?.id) {
       getUserRooms(user.id)
         .then(setMyRooms)
-        .catch(() => {});
+        .catch((e) => console.error('Failed to load rooms:', e));
     }
   }, [user?.id]);
 
@@ -61,11 +63,14 @@ export default function CreateScreen() {
       } else {
         await createPost(title.trim(), body.trim(), topic ?? undefined);
       }
+      setPosting(false);
+      router.replace('/(tabs)/feed');
+      return;
     } catch (e) {
-      console.warn('Post failed:', e);
+      console.error('Post creation failed:', e);
+      showToast({ type: 'error', message: 'Failed to create post.' });
     }
     setPosting(false);
-    router.replace('/(tabs)/feed');
   };
 
   const canPost = title.trim().length > 0 && body.trim().length > 10;

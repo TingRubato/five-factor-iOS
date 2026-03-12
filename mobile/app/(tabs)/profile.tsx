@@ -16,6 +16,7 @@ import { Colors, S, T, R, Shadows } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getArchetypeByName, ARCHETYPES } from '../../lib/archetypes';
 import { getUserRooms } from '../../lib/api';
+import { useToast } from '../../components/ui/Toast';
 import RadarChart from '../../components/RadarChart';
 import ArchetypeCard from '../../components/share/ArchetypeCard';
 import RoomCard from '../../components/RoomCard';
@@ -46,6 +47,7 @@ interface UserRoom {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useUser();
+  const { showToast } = useToast();
   const shareRef = useRef<View>(null);
   const [myRooms, setMyRooms] = useState<UserRoom[]>([]);
 
@@ -62,8 +64,9 @@ export default function ProfileScreen() {
     try {
       const rooms = await getUserRooms(user.id);
       setMyRooms(rooms);
-    } catch {
-      // silent
+    } catch (e) {
+      console.error('Failed to load rooms:', e);
+      showToast({ type: 'error', message: 'Failed to load your rooms.' });
     }
   }, [user?.id]);
 

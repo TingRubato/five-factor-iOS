@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, S, T, R, Fonts } from '../../constants/theme';
 import { useUser } from '../../stores/userStore';
 import { getRoomPosts, joinRoom, createRoomPost, getUserRooms } from '../../lib/api';
+import { useToast } from '../../components/ui/Toast';
 import PressableScale from '../../components/ui/PressableScale';
 import PostCard from '../../components/PostCard';
 
@@ -46,6 +47,7 @@ export default function RoomScreen() {
   const { id: roomId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useUser();
+  const { showToast } = useToast();
 
   const meta = ROOM_META[roomId ?? ''] ?? { name: 'Room', nameZh: '', color: Colors.t3 };
 
@@ -64,8 +66,9 @@ export default function RoomScreen() {
     try {
       const data = await getRoomPosts(roomId);
       setPosts(data);
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.error('Failed to load room posts:', e);
+      showToast({ type: 'error', message: 'Failed to load posts.' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -78,8 +81,8 @@ export default function RoomScreen() {
       const rooms = await getUserRooms(user.id);
       const found = rooms.some((r: any) => r.room_id === roomId);
       setIsMember(found);
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.error('Failed to check membership:', e);
     }
   }, [user?.id, roomId]);
 
@@ -94,8 +97,9 @@ export default function RoomScreen() {
     try {
       await joinRoom(roomId);
       setIsMember(true);
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.error('Failed to join room:', e);
+      showToast({ type: 'error', message: 'Failed to join room.' });
     } finally {
       setJoining(false);
     }
@@ -110,8 +114,9 @@ export default function RoomScreen() {
       await createRoomPost(roomId, title, text);
       setComposerText('');
       fetchPosts();
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.error('Room post failed:', e);
+      showToast({ type: 'error', message: 'Failed to create post.' });
     } finally {
       setPosting(false);
     }
