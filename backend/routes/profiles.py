@@ -126,4 +126,14 @@ def clear_profile_scores(
     profile.secondary_archetype = None
     profile.quiz_version = "none"
 
+    # GDPR Art. 17: also clear personality snapshots from posts
+    db.query(models.Post).filter(models.Post.author_id == user_id).update({
+        models.Post.snapshot_o: None,
+        models.Post.snapshot_c: None,
+        models.Post.snapshot_e: None,
+        models.Post.snapshot_a: None,
+        models.Post.snapshot_n: None,
+        models.Post.snapshot_archetype: None,
+    })
+
     db.commit()
