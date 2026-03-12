@@ -1,8 +1,12 @@
 """
 Auth routes — Apple Sign In, Google Sign In, Phone OTP, Guest Migration.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from backend import schemas, models
 from backend.config import settings
@@ -20,9 +24,10 @@ async def apple_login(body: schemas.AppleAuthRequest, db: Session = Depends(get_
     try:
         claims = await auth_service.verify_apple_token(body.identity_token)
     except Exception as e:
+        logger.warning("Apple token verification failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid Apple token: {str(e)}",
+            detail="Authentication failed",
         )
 
     user, token = auth_service.find_or_create_social_user(
@@ -40,9 +45,10 @@ async def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(ge
     try:
         claims = await auth_service.verify_google_token(body.id_token)
     except Exception as e:
+        logger.warning("Google token verification failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid Google token: {str(e)}",
+            detail="Authentication failed",
         )
 
     user, token = auth_service.find_or_create_social_user(
@@ -59,11 +65,8 @@ async def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(ge
 async def send_otp(request: Request, body: schemas.PhoneOtpRequest):
     """Send a 6-digit OTP to the given phone number."""
     code = auth_service.generate_otp(body.phone)
-    # In production, send via SMS provider (Twilio, etc.)
-    response = {"message": "OTP sent"}
-    if settings.DEBUG:
-        response["dev_code"] = code
-    return response
+    logger.debug("OTP for %s: %s", body.phone, code)
+    return {"message": "OTP sent"}
 
 
 @router.post("/phone/verify", response_model=schemas.AuthResponse)
@@ -107,7 +110,8 @@ async def migrate_guest_account(
             provider_id = claims["sub"]
             email = claims.get("email")
         except Exception as e:
-            raise HTTPException(status_code=401, detail=f"Invalid Apple token: {e}")
+            logger.warning("Apple token verification failed during migration: %s", e)
+            raise HTTPException(status_code=401, detail="Authentication failed")
 
     elif body.auth_provider == "google" and body.auth_token:
         try:
@@ -115,7 +119,8 @@ async def migrate_guest_account(
             provider_id = claims["sub"]
             email = claims.get("email")
         except Exception as e:
-            raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
+            logger.warning("Google token verification failed during migration: %s", e)
+            raise HTTPException(status_code=401, detail="Authentication failed")
 
     elif body.auth_provider == "phone":
         if not body.phone or not body.code:

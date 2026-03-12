@@ -79,11 +79,11 @@ class CreatePostRequest(BaseModel):
 
 class ArenaPostRequest(BaseModel):
     body: str = Field(..., min_length=1, max_length=5000)
-    force_side: Optional[int] = None  # 1 or 2, null = auto-assign
+    force_side: Optional[int] = Field(None, ge=1, le=2)  # 1 or 2, null = auto-assign
 
 
 class ArenaVoteRequest(BaseModel):
-    side: int  # 1 or 2
+    side: int = Field(..., ge=1, le=2)  # 1 or 2
 
 
 # ── Response Models ───────────────────────────────────────────────────────────
