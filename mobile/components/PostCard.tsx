@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   title: {
-    fontSize: T.lg + 2,
+    fontSize: T.xl,
     fontWeight: T.light,
     color: Colors.t1,
     lineHeight: 24,

@@ -44,8 +44,6 @@ const FeedPostCard = React.memo(function FeedPostCard({ item, onPress }: { item:
   const onPressOut = () =>
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
 
-  const isSerendipity = false; // We can derive this later if backend flags it
-
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -54,17 +52,12 @@ const FeedPostCard = React.memo(function FeedPostCard({ item, onPress }: { item:
       activeOpacity={1}
     >
       <Animated.View
-        style={[styles.card, isSerendipity && styles.cardSerendipity, { transform: [{ scale: scaleAnim }] }]}
+        style={[styles.card, { transform: [{ scale: scaleAnim }] }]}
       >
         {/* Top row */}
         <View style={styles.cardTop}>
           <Text style={styles.topicTag}>{item.topic_id || 'GENERAL'}</Text>
           <View style={styles.cardMeta}>
-            {isSerendipity && (
-              <View style={styles.oppTag}>
-                <Text style={styles.oppTagText}>OPPOSITE</Text>
-              </View>
-            )}
             <Text style={styles.timeAgo}>Just now</Text>
           </View>
         </View>
@@ -398,10 +391,6 @@ const styles = StyleSheet.create({
     padding: S[8],
     ...Shadows.sm,
   },
-  cardSerendipity: {
-    borderColor: Colors.serendipity,
-    borderWidth: 1,
-  },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -418,18 +407,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: S[4],
-  },
-  oppTag: {
-    backgroundColor: Colors.serendipityDim,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: R.sm,
-  },
-  oppTagText: {
-    fontSize: 8,
-    fontWeight: T.bold,
-    color: Colors.serendipity,
-    letterSpacing: 1,
   },
   timeAgo: {
     fontSize: T.xs,

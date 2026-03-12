@@ -21,27 +21,7 @@ import { useToast } from '../../components/ui/Toast';
 import type { Arena } from '../../lib/arenas';
 import RoomCard from '../../components/RoomCard';
 import PressableScale from '../../components/ui/PressableScale';
-
-interface RoomData {
-  id: string;
-  dimension: string | null;
-  name: string;
-  name_zh: string;
-  description: string | null;
-  room_type: 'dimension' | 'commons' | 'shadow';
-  color: string;
-  member_count: number;
-}
-
-interface UserRoom {
-  room_id: string;
-  name: string;
-  name_zh: string;
-  dimension: string | null;
-  room_type: string;
-  color: string;
-  role: 'home' | 'shadow' | 'joined';
-}
+import type { RoomData, UserRoom } from '../../lib/types';
 
 export default function HubScreen() {
   const router = useRouter();
