@@ -111,6 +111,9 @@ class RoomMembership(Base):
 
 class Post(Base):
     __tablename__ = 'posts'
+    __table_args__ = (
+        Index('ix_posts_feed_rank', 'upvotes', 'created_at'),
+    )
 
     id = Column(String(36), primary_key=True, index=True)
     author_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True)

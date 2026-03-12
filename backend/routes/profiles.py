@@ -26,7 +26,7 @@ def get_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    user_data = db.query(models.User).filter(models.User.id == user_id).first()
+    user_data = profile.user  # Use relationship instead of separate query
 
     # Ownership and Privacy Check
     is_owner = _auth.id == user_id
