@@ -1,0 +1,24 @@
+backend:
+  - changed-files:
+      - any-glob-to-any-file: 'backend/**'
+
+mobile:
+  - changed-files:
+      - any-glob-to-any-file: 'mobile/**'
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'Dockerfile'
+          - 'docker-compose*.yml'
+
+scoring:
+  - changed-files:
+      - any-glob-to-any-file: 'ipipneo/**'
+
+design:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'design-reference/**'
+          - 'mobile/constants/theme.ts'
